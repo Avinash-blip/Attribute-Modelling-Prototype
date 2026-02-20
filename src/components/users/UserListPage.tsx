@@ -11,13 +11,6 @@ export default function UserListPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<User | null>(null);
   const isCentralScenario = pocOnboardingScenario === 'central_onboarding';
-  const ACTOR_LABEL: Record<string, string> = {
-    company_admin: 'Company Admin',
-    branch_admin: 'Branch Admin',
-    company_user: 'Company User',
-    branch_user: 'Branch User',
-  };
-
   const handleDelete = (user: User) => {
     Modal.confirm({
       title: `Delete "${user.name}"?`,
