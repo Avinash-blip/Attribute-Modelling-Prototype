@@ -9,7 +9,7 @@ import {
   MoreOutlined,
 } from '@ant-design/icons';
 import { useAppContext } from '../../context/AppContext';
-import { BRANCHES, MASTER_DATA_ITEMS, MOCK_JOURNEYS } from '../../data/mockData';
+import { BRANCHES, MASTER_DATA_ITEMS } from '../../data/mockData';
 import CreateTripDrawer from './CreateTripDrawer';
 import { buildUserPermissionMap, resolveJourneyAccess } from './transactionAccess';
 
@@ -20,7 +20,7 @@ const SLA_COLOR: Record<string, string> = {
 };
 
 export default function JourneyListPage() {
-  const { currentUser, attributes, pocOnboardingScenario } = useAppContext();
+  const { currentUser, attributes, journeys, pocOnboardingScenario } = useAppContext();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedBranchFilters, setSelectedBranchFilters] = useState<string[]>([]);
@@ -45,11 +45,11 @@ export default function JourneyListPage() {
 
   const journeysWithAccess = useMemo(
     () =>
-      MOCK_JOURNEYS.map((journey) => ({
+      journeys.map((journey) => ({
         ...journey,
         access: resolveJourneyAccess(journey, permissionMap),
       })),
-    [permissionMap]
+    [journeys, permissionMap]
   );
 
   const readableJourneys = useMemo(

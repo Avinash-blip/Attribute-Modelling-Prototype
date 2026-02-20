@@ -9,6 +9,7 @@ import {
 import { useAppContext } from '../../context/AppContext';
 import { MASTER_DATA_ITEMS } from '../../data/mockData';
 import type { CrudPermission } from '../../types';
+import type { MockJourney } from '../../data/mockData';
 import { buildUserPermissionMap } from './transactionAccess';
 
 interface Props {
@@ -32,8 +33,12 @@ const DROPDOWN_FIELDS: { key: string; label: string; type: string }[] = [
 ];
 
 export default function CreateTripDrawer({ open, onClose }: Props) {
-  const { currentUser, attributes } = useAppContext();
+  const { currentUser, attributes, addJourney } = useAppContext();
   const [form] = Form.useForm();
+  const itemById = useMemo(
+    () => new Map(MASTER_DATA_ITEMS.map((item) => [item.id, item])),
+    []
+  );
 
   const userPermMap = useMemo(() => {
     const map = new Map<string, CrudPermission[]>();
@@ -89,7 +94,32 @@ export default function CreateTripDrawer({ open, onClose }: Props) {
   };
 
   const handleSubmit = () => {
-    form.validateFields().then(() => {
+    form.validateFields().then((values: Record<string, string>) => {
+      const routeItem = itemById.get(values.route);
+      const routeName = routeItem?.name ?? 'Unknown Route';
+      const [from = 'Origin', to = 'Destination'] = routeName.split('→').map((part) => part.trim());
+      const statuses: MockJourney['slaStatus'][] = ['On Time', 'At Risk', 'Delayed'];
+      const newJourney: MockJourney = {
+        id: `JRN-${Math.random().toString(16).slice(2, 10)}`,
+        branchId: routeItem?.branch ?? currentUser.branchId ?? 'br-1',
+        from,
+        to,
+        routeItemId: values.route,
+        vehicleNumber: `MH${Math.floor(10 + Math.random() * 89)}${String.fromCharCode(65 + Math.floor(Math.random() * 26))}${String.fromCharCode(65 + Math.floor(Math.random() * 26))}${Math.floor(1000 + Math.random() * 8999)}`,
+        vehicleType: itemById.get(values.vehicle)?.name ?? 'Unknown Vehicle',
+        vehicleTypeItemId: values.vehicle,
+        materialItemId: values.material,
+        transporterItemId: values.transporter,
+        sim: true,
+        gps: Math.random() > 0.3,
+        phone: `9${Math.floor(100000000 + Math.random() * 900000000)}`,
+        slaStatus: statuses[Math.floor(Math.random() * statuses.length)],
+        eta: '06:30 pm, 24 Feb',
+        alert: null,
+        alertTime: null,
+        attribute: currentUser.assignedAttributes[0] ?? attributes[0]?.id ?? 'unscoped',
+      };
+      addJourney(newJourney);
       onClose();
       form.resetFields();
     });
