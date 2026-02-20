@@ -1,8 +1,29 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import type { Attribute, User } from '../types';
 import { DEFAULT_ATTRIBUTES, DEFAULT_USERS } from '../data/mockData';
 
 export type POCOnboardingScenario = 'central_onboarding' | 'branch_specific_onboarding';
+
+const STORAGE_KEYS = {
+  attributes: 'abac_poc_attributes',
+  users: 'abac_poc_users',
+  currentUser: 'abac_poc_currentUser',
+  scenario: 'abac_poc_scenario',
+} as const;
+
+function loadFromStorage<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw) as T;
+  } catch { /* ignore parse errors, use fallback */ }
+  return fallback;
+}
+
+function saveToStorage(key: string, value: unknown) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch { /* ignore quota errors in rare cases */ }
+}
 
 interface AppState {
   attributes: Attribute[];
@@ -22,11 +43,23 @@ interface AppState {
 const AppContext = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [attributes, setAttributes] = useState<Attribute[]>(DEFAULT_ATTRIBUTES);
-  const [users, setUsers] = useState<User[]>(DEFAULT_USERS);
-  const [currentUser, setCurrentUser] = useState<User>(DEFAULT_USERS[0]);
-  const [pocOnboardingScenario, setPocOnboardingScenario] =
-    useState<POCOnboardingScenario>('central_onboarding');
+  const [attributes, setAttributes] = useState<Attribute[]>(
+    () => loadFromStorage(STORAGE_KEYS.attributes, DEFAULT_ATTRIBUTES),
+  );
+  const [users, setUsers] = useState<User[]>(
+    () => loadFromStorage(STORAGE_KEYS.users, DEFAULT_USERS),
+  );
+  const [currentUser, setCurrentUser] = useState<User>(
+    () => loadFromStorage(STORAGE_KEYS.currentUser, DEFAULT_USERS[0]),
+  );
+  const [pocOnboardingScenario, setPocOnboardingScenario] = useState<POCOnboardingScenario>(
+    () => loadFromStorage(STORAGE_KEYS.scenario, 'central_onboarding' as POCOnboardingScenario),
+  );
+
+  useEffect(() => { saveToStorage(STORAGE_KEYS.attributes, attributes); }, [attributes]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.users, users); }, [users]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.currentUser, currentUser); }, [currentUser]);
+  useEffect(() => { saveToStorage(STORAGE_KEYS.scenario, pocOnboardingScenario); }, [pocOnboardingScenario]);
 
   const addAttribute = useCallback((attr: Attribute) => {
     setAttributes((prev) => [...prev, attr]);
