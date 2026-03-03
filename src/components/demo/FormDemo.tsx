@@ -8,14 +8,15 @@ export default function FormDemo() {
   const [showAll, setShowAll] = useState(false);
 
   const userAttribute = useMemo(() => {
-    if (currentUser.assignedAttributes.length === 0) return null;
-    return attributes.find((a) => a.id === currentUser.assignedAttributes[0]) || null;
+    if (currentUser.attributeAssignments.length === 0) return null;
+    const firstId = currentUser.attributeAssignments[0]?.attributeId;
+    return firstId ? attributes.find((a) => a.id === firstId) || null : null;
   }, [currentUser, attributes]);
 
   const getOptions = (type: string) => {
     const all = MASTER_DATA_ITEMS.filter((i) => i.type === type);
     if (showAll || !userAttribute) return all;
-    const mappedIds = new Set(userAttribute.masterDataMapping.selectedItems.map((s) => s.itemId));
+    const mappedIds = new Set(userAttribute.masterDataMapping.selectedItemIds);
     return all.filter((i) => mappedIds.has(i.id));
   };
 

@@ -34,8 +34,8 @@ export default function JourneyListPage() {
   );
 
   const assignedAttributes = useMemo(
-    () => attributes.filter((a) => currentUser.assignedAttributes.includes(a.id)),
-    [attributes, currentUser.assignedAttributes]
+    () => attributes.filter((a) => currentUser.attributeAssignments.some((x) => x.attributeId === a.id)),
+    [attributes, currentUser.attributeAssignments]
   );
 
   const permissionMap = useMemo(

@@ -1,5 +1,6 @@
 import { Layout, Menu } from 'antd';
 import {
+  ExperimentOutlined,
   TagsOutlined,
   TeamOutlined,
   SwapOutlined,
@@ -31,6 +32,17 @@ export default function Sidebar() {
     },
     {
       type: 'group' as const,
+      label: 'Scenarios',
+      children: [
+        {
+          key: '/scenarios',
+          icon: <ExperimentOutlined />,
+          label: 'Use Cases',
+        },
+      ],
+    },
+    {
+      type: 'group' as const,
       label: 'In-Product',
       children: [
         {
@@ -52,7 +64,7 @@ export default function Sidebar() {
       </div>
       <Menu
         mode="inline"
-        selectedKeys={[location.pathname]}
+        selectedKeys={[location.pathname.startsWith('/scenarios') ? '/scenarios' : location.pathname]}
         items={items}
         onClick={({ key }) => navigate(key)}
         style={{ border: 'none' }}

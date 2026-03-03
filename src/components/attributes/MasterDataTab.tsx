@@ -5,15 +5,13 @@ import BranchSelector from './BranchSelector';
 import MasterDataPicker from './MasterDataPicker';
 import BulkUploadModal from './BulkUploadModal';
 import { MASTER_DATA_ITEMS, BRANCHES } from '../../data/mockData';
-import type { ItemPermission } from '../../types';
-import { ALL_CRUD } from '../../types';
 
 interface Props {
   onboardingType: 'company' | 'branch';
   selectedBranches: string[] | 'ALL';
-  selectedItems: ItemPermission[];
+  selectedItemIds: string[];
   onChangeBranches: (branches: string[] | 'ALL') => void;
-  onChangeItems: (items: ItemPermission[]) => void;
+  onChangeItems: (ids: string[]) => void;
   branchSelectorDisabled?: boolean;
   lockedBranchName?: string;
   branchSingleSelect?: boolean;
@@ -23,7 +21,7 @@ interface Props {
 export default function MasterDataTab({
   onboardingType,
   selectedBranches,
-  selectedItems,
+  selectedItemIds,
   onChangeBranches,
   onChangeItems,
   branchSelectorDisabled = false,
@@ -34,11 +32,11 @@ export default function MasterDataTab({
   const [bulkOpen, setBulkOpen] = useState(false);
 
   useEffect(() => {
-    if (selectedItems.length > 0) return;
+    if (selectedItemIds.length > 0) return;
     if (onboardingType === 'company' && !forceBranchSelector) {
       const items = MASTER_DATA_ITEMS.filter((i) => i.onboardedAt === 'company');
       if (items.length > 0) {
-        onChangeItems(items.map((i) => ({ itemId: i.id, permissions: [...ALL_CRUD] })));
+        onChangeItems(items.map((i) => i.id));
       }
     } else {
       const branchIds = selectedBranches === 'ALL' ? BRANCHES.map((b) => b.id) : selectedBranches;
@@ -47,10 +45,10 @@ export default function MasterDataTab({
         (i) => i.onboardedAt === 'company' || (i.branch && branchIds.includes(i.branch))
       );
       if (items.length > 0) {
-        onChangeItems(items.map((i) => ({ itemId: i.id, permissions: [...ALL_CRUD] })));
+        onChangeItems(items.map((i) => i.id));
       }
     }
-  }, [onboardingType, selectedBranches, selectedItems.length, onChangeItems, forceBranchSelector]);
+  }, [onboardingType, selectedBranches, selectedItemIds.length, onChangeItems, forceBranchSelector]);
 
   const handleBranchChange = (branches: string[] | 'ALL') => {
     onChangeBranches(branches);
@@ -58,15 +56,13 @@ export default function MasterDataTab({
     const available = MASTER_DATA_ITEMS.filter(
       (i) => i.onboardedAt === 'company' || (i.branch && branchIds.includes(i.branch))
     );
-    onChangeItems(available.map((i) => ({ itemId: i.id, permissions: [...ALL_CRUD] })));
+    onChangeItems(available.map((i) => i.id));
   };
 
   const handleBulkConfirm = (ids: string[]) => {
-    const existingIds = new Set(selectedItems.map((s) => s.itemId));
-    const newItems: ItemPermission[] = ids
-      .filter((id) => !existingIds.has(id))
-      .map((id) => ({ itemId: id, permissions: [...ALL_CRUD] }));
-    onChangeItems([...selectedItems, ...newItems]);
+    const existingIds = new Set(selectedItemIds);
+    const newIds = ids.filter((id) => !existingIds.has(id));
+    onChangeItems([...selectedItemIds, ...newIds]);
   };
 
   const availableCount = useMemo(() => {
@@ -113,7 +109,7 @@ export default function MasterDataTab({
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography.Text strong style={{ fontSize: 13 }}>
-            Master Data ({selectedItems.length}/{availableCount})
+            Master Data ({selectedItemIds.length}/{availableCount})
           </Typography.Text>
           <Button size="small" icon={<UploadOutlined />} onClick={() => setBulkOpen(true)}>
             Bulk Upload
@@ -123,7 +119,7 @@ export default function MasterDataTab({
         <MasterDataPicker
           onboardingType={onboardingType}
           selectedBranches={selectedBranches}
-          selectedItems={selectedItems}
+          selectedItemIds={selectedItemIds}
           onChange={onChangeItems}
           groupBy={groupBy}
         />

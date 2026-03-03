@@ -2,40 +2,26 @@ import { useMemo, useState } from 'react';
 import { Collapse, Checkbox, Input, Badge, Tag, Space, Typography, Empty } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { MASTER_DATA_ITEMS, MASTER_DATA_TYPE_LABELS, MASTER_DATA_TYPES, BRANCHES } from '../../data/mockData';
-import type { MasterDataItem, ItemPermission, CrudPermission } from '../../types';
-import { ALL_CRUD } from '../../types';
+import type { MasterDataItem } from '../../types';
 
 interface Props {
   onboardingType: 'company' | 'branch';
   selectedBranches: string[] | 'ALL';
-  selectedItems: ItemPermission[];
-  onChange: (items: ItemPermission[]) => void;
+  selectedItemIds: string[];
+  onChange: (ids: string[]) => void;
   groupBy?: 'type' | 'branch_then_type';
 }
-
-const CRUD_LABELS: { key: CrudPermission; label: string }[] = [
-  { key: 'create', label: 'C' },
-  { key: 'read', label: 'R' },
-  { key: 'update', label: 'U' },
-  { key: 'delete', label: 'D' },
-];
 
 export default function MasterDataPicker({
   onboardingType,
   selectedBranches,
-  selectedItems,
+  selectedItemIds,
   onChange,
   groupBy = 'type',
 }: Props) {
   const [search, setSearch] = useState('');
 
-  const selectedIds = useMemo(() => new Set(selectedItems.map((s) => s.itemId)), [selectedItems]);
-
-  const permMap = useMemo(() => {
-    const map = new Map<string, CrudPermission[]>();
-    for (const s of selectedItems) map.set(s.itemId, s.permissions);
-    return map;
-  }, [selectedItems]);
+  const selectedIds = useMemo(() => new Set(selectedItemIds), [selectedItemIds]);
 
   const availableItems = useMemo(() => {
     if (onboardingType === 'company') {
@@ -53,35 +39,20 @@ export default function MasterDataPicker({
     return availableItems.filter((i) => i.name.toLowerCase().includes(q) || i.type.toLowerCase().includes(q));
   }, [availableItems, search]);
 
-  // --- shared toggle helpers ---
-
   const toggleItem = (id: string, checked: boolean) => {
     if (checked) {
-      onChange([...selectedItems, { itemId: id, permissions: [...ALL_CRUD] }]);
+      onChange([...selectedItemIds, id]);
     } else {
-      onChange(selectedItems.filter((s) => s.itemId !== id));
+      onChange(selectedItemIds.filter((sid) => sid !== id));
     }
-  };
-
-  const toggleCrud = (itemId: string, perm: CrudPermission, checked: boolean) => {
-    onChange(
-      selectedItems.map((s) => {
-        if (s.itemId !== itemId) return s;
-        const perms = checked
-          ? [...s.permissions, perm]
-          : s.permissions.filter((p) => p !== perm);
-        return { ...s, permissions: perms };
-      })
-    );
   };
 
   const toggleItemSet = (ids: Set<string>, checked: boolean) => {
     if (checked) {
-      const existing = selectedItems.filter((s) => !ids.has(s.itemId));
-      const newItems: ItemPermission[] = [...ids].map((id) => ({ itemId: id, permissions: [...ALL_CRUD] }));
-      onChange([...existing, ...newItems]);
+      const existing = selectedItemIds.filter((sid) => !ids.has(sid));
+      onChange([...existing, ...ids]);
     } else {
-      onChange(selectedItems.filter((s) => !ids.has(s.itemId)));
+      onChange(selectedItemIds.filter((sid) => !ids.has(sid)));
     }
   };
 
@@ -90,11 +61,8 @@ export default function MasterDataPicker({
     return BRANCHES.find((b) => b.id === branchId)?.name || branchId;
   };
 
-  // --- shared item row renderer ---
-
   const renderItemRow = (item: MasterDataItem, showBranch = true) => {
     const isChecked = selectedIds.has(item.id);
-    const perms = permMap.get(item.id) || [];
     return (
       <div
         key={item.id}
@@ -118,41 +86,16 @@ export default function MasterDataPicker({
             )}
           </Space>
         </Checkbox>
-        {isChecked && (
-          <Space size={2} style={{ flexShrink: 0 }}>
-            {CRUD_LABELS.map(({ key, label }) => (
-              <Checkbox
-                key={key}
-                checked={perms.includes(key)}
-                onChange={(e) => toggleCrud(item.id, key, e.target.checked)}
-                style={{ fontSize: 11, marginInlineStart: 0 }}
-              >
-                <span style={{ fontSize: 11, fontWeight: 500 }}>{label}</span>
-              </Checkbox>
-            ))}
-          </Space>
-        )}
       </div>
     );
   };
 
-  // --- group badge helper ---
-
   const groupBadge = (items: MasterDataItem[]) => {
     const sel = items.filter((i) => selectedIds.has(i.id)).length;
-    const restricted = items.filter((i) => {
-      const p = permMap.get(i.id);
-      return p && p.length < 4;
-    }).length;
-    const text = restricted > 0
-      ? `${sel}/${items.length} (${restricted} restricted)`
-      : `${sel}/${items.length}`;
     return (
-      <Badge count={text} style={{ backgroundColor: sel > 0 ? '#1677ff' : '#d9d9d9' }} />
+      <Badge count={`${sel}/${items.length}`} style={{ backgroundColor: sel > 0 ? '#1677ff' : '#d9d9d9' }} />
     );
   };
-
-  // --- groupBy = 'type' (flat) ---
 
   const renderFlatByType = () => {
     const grouped: Record<string, MasterDataItem[]> = {};
@@ -198,8 +141,6 @@ export default function MasterDataPicker({
 
     return <Collapse items={collapseItems} defaultActiveKey={Object.keys(grouped).slice(0, 2)} />;
   };
-
-  // --- groupBy = 'branch_then_type' (nested) ---
 
   const renderBranchThenType = () => {
     const companyItems = filtered.filter((i) => i.onboardedAt === 'company');
@@ -315,8 +256,6 @@ export default function MasterDataPicker({
     return <Collapse items={outerItems} defaultActiveKey={outerItems.slice(0, 2).map((i) => i.key)} />;
   };
 
-  // --- empty state ---
-
   if (onboardingType === 'branch' && selectedBranches !== 'ALL' && (selectedBranches as string[]).length === 0) {
     return <Empty description="Select at least one branch to view master data" style={{ padding: 40 }} />;
   }
@@ -332,7 +271,7 @@ export default function MasterDataPicker({
           allowClear
         />
         <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-          {selectedItems.filter((s) => availableItems.some((i) => i.id === s.itemId)).length} of{' '}
+          {selectedItemIds.filter((id) => availableItems.some((i) => i.id === id)).length} of{' '}
           {availableItems.length} items selected
         </Typography.Text>
       </Space>

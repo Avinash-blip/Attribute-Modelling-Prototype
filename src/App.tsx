@@ -5,6 +5,8 @@ import AppLayout from './components/layout/AppLayout';
 import AttributeListPage from './components/attributes/AttributeListPage';
 import UserListPage from './components/users/UserListPage';
 import JourneyListPage from './components/transactions/JourneyListPage';
+import ScenarioListPage from './components/scenarios/ScenarioListPage';
+import ScenarioWalkthroughPage from './components/scenarios/ScenarioWalkthroughPage';
 import FormDemo from './components/demo/FormDemo';
 import DashboardDemo from './components/demo/DashboardDemo';
 
@@ -15,9 +17,12 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route element={<AppLayout />}>
+              <Route index element={<Navigate to="/scenarios" replace />} />
               <Route path="/settings/attributes" element={<AttributeListPage />} />
               <Route path="/settings/users" element={<UserListPage />} />
               <Route path="/transactions/journeys" element={<JourneyListPage />} />
+              <Route path="/scenarios" element={<ScenarioListPage />} />
+              <Route path="/scenarios/:scenarioId" element={<ScenarioWalkthroughPage />} />
               <Route path="/demo/create-indent" element={<FormDemo />} />
               <Route path="/demo/dashboard" element={<DashboardDemo />} />
               <Route path="*" element={<Navigate to="/settings/attributes" replace />} />

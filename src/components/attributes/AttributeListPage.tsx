@@ -32,7 +32,7 @@ export default function AttributeListPage() {
   };
 
   const handleDelete = (attr: Attribute) => {
-    const affectedUsers = users.filter((u) => u.assignedAttributes.includes(attr.id));
+    const affectedUsers = users.filter((u) => u.attributeAssignments.some((a) => a.attributeId === attr.id));
     Modal.confirm({
       title: `Delete "${attr.label}"?`,
       content: affectedUsers.length > 0
@@ -78,7 +78,7 @@ export default function AttributeListPage() {
       key: 'masterData',
       width: 110,
       render: (_: unknown, r: Attribute) => (
-        <Tag>{r.masterDataMapping.selectedItems.length} items</Tag>
+        <Tag>{r.masterDataMapping.selectedItemIds.length} items</Tag>
       ),
     },
     {
@@ -94,7 +94,7 @@ export default function AttributeListPage() {
       key: 'users',
       width: 100,
       render: (_: unknown, r: Attribute) => {
-        const assigned = users.filter((u) => u.assignedAttributes.includes(r.id));
+        const assigned = users.filter((u) => u.attributeAssignments.some((a) => a.attributeId === r.id));
         return (
           <Avatar.Group max={{ count: 3 }} size="small">
             {assigned.map((u) => (

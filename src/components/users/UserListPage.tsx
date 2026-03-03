@@ -43,10 +43,10 @@ export default function UserListPage() {
             title: 'Attributes / Segment',
             key: 'attributeSegment',
             render: (_: unknown, r: User) =>
-              r.assignedAttributes.length > 0
-                ? r.assignedAttributes.map((aid) => {
-                    const attr = attributes.find((a) => a.id === aid);
-                    return attr ? <Tag key={aid} color="blue">{attr.label}</Tag> : null;
+              r.attributeAssignments.length > 0
+                ? r.attributeAssignments.map((a) => {
+                    const attr = attributes.find((x) => x.id === a.attributeId);
+                    return attr ? <Tag key={a.attributeId} color="blue">{attr.label}</Tag> : null;
                   })
                 : <Tag color="gold">All Company Data (Admin)</Tag>,
           },
@@ -75,10 +75,10 @@ export default function UserListPage() {
             render: (_: unknown, r: User) =>
               r.defaultBranchAccess
                 ? <Tag color="gold">Default Branch Access (Full CRUD)</Tag>
-                : r.assignedAttributes.length > 0
-                ? r.assignedAttributes.map((aid) => {
-                    const attr = attributes.find((a) => a.id === aid);
-                    return attr ? <Tag key={aid}>{attr.label}</Tag> : null;
+                : r.attributeAssignments.length > 0
+                ? r.attributeAssignments.map((a) => {
+                    const attr = attributes.find((x) => x.id === a.attributeId);
+                    return attr ? <Tag key={a.attributeId}>{attr.label}</Tag> : null;
                   })
                 : <Typography.Text type="secondary">None</Typography.Text>,
           },

@@ -19,17 +19,30 @@ export type LegoActorType =
   | 'branch_user';
 
 export type CrudPermission = 'create' | 'read' | 'update' | 'delete';
-export const ALL_CRUD: CrudPermission[] = ['create', 'read', 'update', 'delete'];
 
-export interface ItemPermission {
-  itemId: string;
-  permissions: CrudPermission[];
-}
+export type CrudPreset = 'full_crud' | 'read_only' | 'create_read' | 'custom';
+
+export const PRESET_PERMISSIONS: Record<CrudPreset, CrudPermission[]> = {
+  full_crud: ['create', 'read', 'update', 'delete'],
+  read_only: ['read'],
+  create_read: ['create', 'read'],
+  custom: [],
+};
+
+export const ALL_CRUD: CrudPermission[] = PRESET_PERMISSIONS.full_crud;
 
 export interface MasterDataMapping {
   onboardingType: 'company' | 'branch';
   selectedBranches: string[] | 'ALL';
-  selectedItems: ItemPermission[];
+  selectedItemIds: string[];
+  crudPreset: CrudPreset;
+  customPermissions: CrudPermission[];
+}
+
+export interface UserAttributeAssignment {
+  attributeId: string;
+  crudOverride?: CrudPreset;
+  customOverridePermissions?: CrudPermission[];
 }
 
 export interface MasterDataItem {
@@ -65,6 +78,6 @@ export interface User {
   legoActorType: LegoActorType;
   level: 'company' | 'branch';
   branchId?: string;
-  assignedAttributes: string[];
+  attributeAssignments: UserAttributeAssignment[];
   defaultBranchAccess?: boolean;
 }

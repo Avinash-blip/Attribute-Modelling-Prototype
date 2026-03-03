@@ -117,7 +117,7 @@ export default function CreateTripDrawer({ open, onClose }: Props) {
         eta: '06:30 pm, 24 Feb',
         alert: null,
         alertTime: null,
-        attribute: currentUser.assignedAttributes[0] ?? attributes[0]?.id ?? 'unscoped',
+        attribute: currentUser.attributeAssignments[0]?.attributeId ?? attributes[0]?.id ?? 'unscoped',
       };
       addJourney(newJourney);
       onClose();
@@ -155,7 +155,7 @@ export default function CreateTripDrawer({ open, onClose }: Props) {
         style={{ marginBottom: 20, fontSize: 12 }}
       />
 
-      {currentUser.assignedAttributes.length === 0 && (
+      {currentUser.attributeAssignments.length === 0 && (
         <Alert
           message="No attributes assigned to this user. All items will show as No Access."
           type="warning"

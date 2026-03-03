@@ -1,14 +1,11 @@
-import type { Attribute, CrudPermission, User, UserAttributeAssignment } from '../../types';
+import type { Attribute, CrudPermission, User, MasterDataItem, UserAttributeAssignment } from '../../types';
 import { PRESET_PERMISSIONS, ALL_CRUD } from '../../types';
-import { MASTER_DATA_ITEMS } from '../../data/mockData';
-import type { MockJourney } from '../../data/mockData';
+import {
+  resolveJourneyAccess as resolveJourneyAccessOriginal,
+  type JourneyAccess,
+} from '../transactions/transactionAccess';
 
-export interface JourneyAccess {
-  canReadRow: boolean;
-  canUpdateRow: boolean;
-  missingReadItems: string[];
-  missingUpdateItems: string[];
-}
+export type { JourneyAccess };
 
 function getEffectivePermissions(
   assignment: UserAttributeAssignment,
@@ -23,9 +20,10 @@ function getEffectivePermissions(
   return PRESET_PERMISSIONS[preset];
 }
 
-export const buildUserPermissionMap = (
+export const buildScenarioPermissionMap = (
   attributes: Attribute[],
-  currentUser: User
+  currentUser: User,
+  masterDataItems: MasterDataItem[]
 ): Map<string, Set<CrudPermission>> => {
   const permissionMap = new Map<string, Set<CrudPermission>>();
 
@@ -41,7 +39,7 @@ export const buildUserPermissionMap = (
   }
 
   if (currentUser.legoActorType === 'branch_user' && currentUser.defaultBranchAccess && currentUser.branchId) {
-    const scopedItems = MASTER_DATA_ITEMS.filter(
+    const scopedItems = masterDataItems.filter(
       (item) => item.onboardedAt === 'company' || item.branch === currentUser.branchId
     );
     for (const item of scopedItems) {
@@ -52,34 +50,4 @@ export const buildUserPermissionMap = (
   return permissionMap;
 };
 
-const hasReadPermission = (perms?: Set<CrudPermission>): boolean => {
-  if (!perms) return false;
-  return (
-    perms.has('read') ||
-    perms.has('create') ||
-    perms.has('update') ||
-    perms.has('delete')
-  );
-};
-
-export const resolveJourneyAccess = (
-  journey: MockJourney,
-  permissionMap: Map<string, Set<CrudPermission>>
-): JourneyAccess => {
-  const requiredItemIds = [
-    journey.routeItemId,
-    journey.vehicleTypeItemId,
-    journey.materialItemId,
-    journey.transporterItemId,
-  ];
-
-  const missingReadItems = requiredItemIds.filter((itemId) => !hasReadPermission(permissionMap.get(itemId)));
-  const missingUpdateItems = requiredItemIds.filter((itemId) => !permissionMap.get(itemId)?.has('update'));
-
-  return {
-    canReadRow: missingReadItems.length === 0,
-    canUpdateRow: missingUpdateItems.length === 0,
-    missingReadItems,
-    missingUpdateItems,
-  };
-};
+export const resolveJourneyAccess = resolveJourneyAccessOriginal;
