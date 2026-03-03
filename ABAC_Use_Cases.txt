@@ -1,0 +1,799 @@
+ABAC Use Cases for FT TMS
+
+Overview
+This document describes 24 real-world scenarios that the access control system must support in FT TMS. Each scenario is written in plain language and includes a concrete example with realistic data  routes, vehicles, materials, and transporter names. Follow the link in the below table to redirect to that example.
+
+#
+Scenario
+Category
+Key Data in Example
+Product Prioritisation
+1
+One Person, Two Branches, Different Permissions
+Branch Access
+Chennai→Bengaluru, Ahmedabad→Mumbai
+Must Have
+
+2
+Two Teams in Same Branch, Separate Data
+Data Isolation
+FMCG (Maggi) vs Cement (UltraTech)
+Must Have
+3
+Business Head vs Regional Head
+Hierarchy
+SPD North/South/East/West regions
+Must Have
+4
+Cross-Branch Regional Leader
+Cross-Branch
+SPD, TMCV, DEF – North region
+Must Have
+5
+Same Transporter, Different Permissions
+Shared Entities
+ABC Logistics in Pune vs Nagpur
+Phase 2
+6
+Operations Team vs Finance Team
+Department Roles
+Freight ₹45K, Invoice INV-88321
+Must Have
+7
+Dashboard Filtering Based on Access
+Reporting
+142 journeys, 87% OTD (North)
+Must Have
+8
+New User with No Attributes Mapped Yet
+Default Behaviour
+Sunil, Pune branch, no tags
+Must Have
+9
+Temporary Access for Limited Time
+Time-Bound
+South region, 1–14 Mar coverage
+Phase 3
+10
+Access Based on Multiple Conditions
+Multi-Attribute
+SPD + FMCG + North (all must match)
+Phase 2
+11
+External Partner Portal Access
+External Users
+ABC Transport sees own trips only
+Must Have
+12
+Emergency Access (Break-Glass)
+Overrides
+Samsung shipment stuck at toll
+Phase 3
+13
+Organisational Restructuring
+Transitions
+Meerut/Agra/Mathura: North→East
+Must Have
+14
+Maker-Checker Approval Workflow
+Workflows
+Apple iPads, ₹2.1 Cr shipment
+Needs Internal Discussion
+15
+Different Fields for Different Roles
+Field-Level
+Ops sees route, Finance sees cost
+Phase 3
+16
+Bulk Actions Across Access Boundaries
+Bulk Operations
+200 journeys, 150 updated, 50 skipped
+Default Behavior
+17
+Auditor Access (Time-Scoped)
+Compliance
+PwC, Apr 2024–Mar 2025 only
+Needs Discussion
+18
+Conflicting Access Rules
+Conflict Resolution
+SPD_NORTH (CRUD) vs SPD_ALL (view)
+Align with Rajesh Sudhakaran
+19
+Notifications Filtered by Access
+Alerts
+6-hr delay, Mandya vehicle breakdown
+Must Have
+20
+Self-Service Access Delegation
+Delegation
+Amit delegates to Swati, 1 week
+Not Priority (Idealistic)
+21
+Access Based on Journey Stage
+Status-Based
+Planned→Dispatched→Closed
+Future Enhancement
+22
+Access Revocation on Exit/Transfer
+Lifecycle
+Rajesh resigns, Meena transfers
+Future Enhancement
+Detailed Scenarios
+
+Scenario 1: One Person, Two Branches, Different Permissions
+The Situation
+Sometimes a person works across two branches but plays different roles in each. In one branch, they are an active operator. In the other, they only need to keep an eye on things without making changes.
+Real-World Example
+	•	Ramesh is a regional operations controller.
+	•	In the South branch, he manages day-to-day operations — creating trips, editing details, and closing journeys.
+	•	In the West branch, he only monitors performance dashboards and journey status. He should not be able to change anything there.
+How It Is Set Up
+	•	South branch → Full access (create, read, edit, delete).
+	•	West branch → View-only access.
+What Should Happen
+	•	Ramesh can create, edit, and delete journeys in the South branch.
+	•	He can view journeys in the West branch but cannot change or delete anything.
+	•	If he tries to edit a West branch journey, the system blocks him.
+
+📦 Illustrative Example with Sample Data
+User
+Ramesh (Regional Ops Controller)
+South Branch Journey
+Journey #S-4021 | Route: Chennai → Bengaluru | Vehicle: TN-07-AB-1234 (14MT Tata Truck)
+Material: 12 MT Surf Excel (FMCG) | Transporter: Sri Balaji Roadlines
+✅ Ramesh CAN create, edit, and close this journey.
+West Branch Journey
+Journey #W-8890 | Route: Ahmedabad → Mumbai | Vehicle: GJ-01-CD-5678 (9MT Eicher)
+Material: 8 MT Clinic Plus Shampoo (FMCG) | Transporter: Western Cargo Movers
+❌ Ramesh can VIEW this journey but CANNOT edit or delete it.
+
+Scenario 2: Two Teams in the Same Branch, Separate Data
+The Situation
+Two different teams operate out of the same branch, but they handle completely different types of goods. Each team should only see their own work and not the other’s.
+Real-World Example
+	•	Mumbai branch has two teams: Team A handles FMCG goods (like soaps and packaged food), and Team B handles Cement.
+	•	Both teams sit in the same office and may even share some vehicles or warehouses.
+	•	But their transaction data must be kept separate — Team A should never see Cement journeys, and Team B should never see FMCG journeys.
+How It Is Set Up
+	•	User 1 (Team A) is tagged with the FMCG label.
+	•	User 2 (Team B) is tagged with the Cement label.
+	•	Some shared resources (like vehicles) may appear for both, but journey records are isolated.
+What Should Happen
+	•	User 1 logs in and only sees FMCG journeys.
+	•	User 2 logs in and only sees Cement journeys.
+	•	Neither user can see, search for, or access the other team’s data.
+	•	Shared master data (vehicles, warehouses) is available to both where needed.
+
+📦 Illustrative Example with Sample Data
+Branch
+Mumbai
+User 1 (Pooja – FMCG Team)
+Journey #M-2201 | Route: Mumbai → Pune | Vehicle: MH-04-EF-3344 (9MT Eicher)
+Material: 7 MT Maggi Noodles (FMCG) | Transporter: Shreeji Transport Co.
+✅ Pooja can see and manage this journey.
+User 2 (Vikrant – Cement Team)
+Journey #M-2250 | Route: Mumbai → Nashik | Vehicle: MH-04-GH-7788 (25MT Trailer)
+Material: 22 MT UltraTech Cement (Cement) | Transporter: Navneet Roadways
+✅ Vikrant can see and manage this journey.
+Cross-visibility
+❌ Pooja CANNOT see journey #M-2250 (Cement).
+❌ Vikrant CANNOT see journey #M-2201 (FMCG).
+✅ Both can see shared vehicle MH-04-EF-3344 in the vehicle master if it is shared.
+
+Scenario 3: Business Head vs Regional Head (Hierarchy Within a Branch)
+The Situation
+A branch may be divided into multiple regions. The business head needs to see everything across all regions but should not make changes. Each regional head should fully manage their own region only.
+Real-World Example
+	•	SPD branch is divided into four regions: North, South, East, and West.
+	•	Mr. Sharma is the Business Head for SPD. He needs a bird’s-eye view of all four regions.
+	•	Ms. Priya is the Regional Head for SPD North. She manages all North region operations.
+How It Is Set Up
+	•	Mr. Sharma gets an SPD_ALL tag → View-only access across all regions.
+	•	Ms. Priya gets an SPD_NORTH tag → Full access to North region only.
+	•	Similar tags for South, East, and West regional heads.
+What Should Happen
+	•	Mr. Sharma can see all journeys across all four regions but cannot create, edit, or delete any journey.
+	•	Ms. Priya can create, edit, and delete journeys in the North region only.
+	•	Ms. Priya cannot see or access South, East, or West data.
+	•	Clear boundaries are maintained between oversight and operational roles.
+
+📦 Illustrative Example with Sample Data
+Branch
+SPD
+Mr. Sharma (Business Head – SPD_ALL)
+Can VIEW Journey #SPD-N-101 | Route: Delhi → Jaipur | Vehicle: DL-01-AA-1111 | Material: 10 MT ACC Cement | Transporter: Rajdhani Carriers
+Can VIEW Journey #SPD-S-305 | Route: Hyderabad → Vijayawada | Vehicle: TS-08-BB-2222 | Material: 8 MT Ambuja Cement | Transporter: Deccan Freight
+Can VIEW Journey #SPD-E-410 | Route: Kolkata → Patna | Vehicle: WB-02-CC-3333 | Material: 14 MT Birla Cement | Transporter: Eastern Express
+❌ Mr. Sharma CANNOT edit or delete any of these journeys.
+Ms. Priya (Regional Head – SPD_NORTH)
+✅ Can CREATE/EDIT/DELETE Journey #SPD-N-101 (Delhi → Jaipur) — this is North region.
+❌ CANNOT see Journey #SPD-S-305 (South) or #SPD-E-410 (East).
+
+Scenario 4: Cross-Branch Regional Leader
+The Situation
+A senior leader is responsible for a specific region but that region spans across multiple branches. They need to see their region’s data regardless of which branch it belongs to.
+Real-World Example
+	•	Mr. Vikram is the North Regional Director.
+	•	His region’s operations run through three branches: SPD, TMCV, and DEF.
+	•	He needs to see all North region journeys from all three branches in one view.
+How It Is Set Up
+	•	Mr. Vikram is tagged with “North Region” access across SPD, TMCV, and DEF branches.
+What Should Happen
+	•	Mr. Vikram can filter and view all North region journeys across all three branches.
+	•	He cannot see South, East, or West region data from any branch.
+	•	His dashboards show combined North region performance across branches.
+
+📦 Illustrative Example with Sample Data
+User
+Mr. Vikram (North Regional Director)
+SPD Branch – North
+✅ Journey #SPD-N-101 | Delhi → Jaipur | DL-01-AA-1111 | 10 MT ACC Cement | Rajdhani Carriers
+TMCV Branch – North
+✅ Journey #TMCV-N-055 | Lucknow → Kanpur | UP-32-DD-4444 | 6 MT Tata Steel Rods | North Star Logistics
+DEF Branch – North
+✅ Journey #DEF-N-078 | Chandigarh → Amritsar | PB-10-EE-5555 | 9 MT Grasim Textiles | Punjab Roadways
+Not Visible
+❌ Journey #SPD-S-305 (South region, SPD branch) — HIDDEN from Mr. Vikram.
+❌ Journey #TMCV-W-099 (West region, TMCV branch) — HIDDEN from Mr. Vikram.
+
+Scenario 5: Same Transporter, Different Permissions in Different Branches
+The Situation
+A transporter (trucking company) may work with multiple branches. But the relationship with each branch may be different — one branch may allow editing, while another only allows viewing.
+Real-World Example
+	•	Transporter “ABC Logistics” works with both Branch A (Pune) and Branch B (Nagpur).
+	•	Pune’s team actively manages ABC’s trips and needs to edit transaction details.
+	•	Nagpur’s team only monitors ABC’s deliveries and should not change anything.
+How It Is Set Up
+	•	Pune branch users tagged with ABC Logistics → Full access.
+	•	Nagpur branch users tagged with ABC Logistics → View-only access.
+What Should Happen
+	•	Pune users can create, edit, and manage trips for ABC Logistics.
+	•	Nagpur users can only view ABC Logistics trips.
+	•	No accidental cross-editing happens between branches.
+	•	Both teams see the same transporter but with different permission levels.
+
+📦 Illustrative Example with Sample Data
+Transporter
+ABC Logistics
+Pune Branch (Full Access)
+Journey #PUN-601 | Route: Pune → Solapur | Vehicle: MH-12-FF-6666 (14MT Ashok Leyland)
+Material: 11 MT Nirma Detergent (FMCG) | Transporter: ABC Logistics
+✅ Pune team can edit vehicle assignment, update delivery status, modify freight rate.
+Nagpur Branch (View-Only)
+Journey #NAG-802 | Route: Nagpur → Raipur | Vehicle: MH-31-GG-7777 (9MT Tata 407)
+Material: 6 MT Parle Biscuits (FMCG) | Transporter: ABC Logistics
+❌ Nagpur team can VIEW this journey but CANNOT change vehicle, status, or freight rate.
+
+Scenario 6: Operations Team vs Finance Team
+The Situation
+Operations and Finance are two different departments that need to see the same data but for different purposes. Finance should never modify operational data, while Operations should work freely within their scope.
+Real-World Example
+	•	The Finance team at head office needs to review freight costs, invoices, and payment statuses across all journeys.
+	•	The Operations team at each branch needs to create and manage journeys, assign vehicles, and update statuses.
+	•	Finance should see everything but touch nothing. Operations should work within their assigned area only.
+How It Is Set Up
+	•	Finance users → View-only access across all branches and segments.
+	•	Operations users → Full access, but only within their assigned branch and business segment.
+What Should Happen
+	•	A Finance user can open any journey from any branch and view all details including costs.
+	•	A Finance user cannot edit journey status, reassign a vehicle, or delete a record.
+	•	An Operations user can fully manage journeys but only within their own scope.
+	•	This prevents accidental data changes by non-operational staff.
+
+📦 Illustrative Example with Sample Data
+Journey
+Journey #CHN-150 | Route: Chennai → Coimbatore | Vehicle: TN-09-HH-8888 (14MT Container) | Material: 13 MT Hindustan Lever Soaps (FMCG) | Transporter: Southern Express Lines | Freight: ₹45,000 | Invoice: INV-88321
+Anita (Finance Team)
+✅ Can VIEW journey details: route, vehicle, material, freight cost (₹45,000), invoice status.
+❌ CANNOT change vehicle from TN-09-HH-8888 to another truck.
+❌ CANNOT update journey status from “In Transit” to “Delivered.”
+Karthik (Ops Team – Chennai Branch)
+✅ Can EDIT vehicle assignment, update delivery status, change route if needed.
+✅ Can CLOSE the journey and mark it as delivered.
+❌ Cannot access journeys from Pune or Mumbai branch.
+
+Scenario 7: Dashboard and Report Filtering Based on Access
+The Situation
+Users need to see charts, reports, and dashboards that reflect only their area of responsibility. A regional head should not see national numbers unless they have access.
+Real-World Example
+	•	Ms. Anita is the SPD North Regional Head. When she opens the performance dashboard, she should see only SPD North metrics.
+	•	Mr. Raj is a Business Head. He should be able to compare SPD North vs SPD South performance side by side.
+	•	A branch user tagged with FMCG should only see FMCG-related numbers on their dashboard.
+How It Is Set Up
+	•	Dashboards automatically filter data based on the user’s assigned tags.
+	•	Users with multiple tags can toggle between views or see combined data.
+What Should Happen
+	•	Ms. Anita’s dashboard shows only SPD North data — delivery counts, on-time percentage, etc.
+	•	Mr. Raj can see and compare data across all SPD regions.
+	•	An FMCG-tagged user sees only FMCG metrics, not Cement or other segments.
+	•	No user sees data outside their permitted scope on any report or chart.
+
+📦 Illustrative Example with Sample Data
+Ms. Anita’s Dashboard (SPD North)
+Total Journeys: 142 | On-Time Delivery: 87% | Avg Transit Time: 14 hrs
+Top Route: Delhi → Jaipur (38 trips) | Top Transporter: Rajdhani Carriers (52 trips)
+Delayed Shipments: 18 | Most Delayed Route: Delhi → Dehradun
+❌ Does NOT show SPD South, East, or West numbers.
+Mr. Raj’s Dashboard (SPD_ALL)
+SPD North: 142 journeys, 87% OTD | SPD South: 198 journeys, 91% OTD
+SPD East: 89 journeys, 78% OTD | SPD West: 165 journeys, 85% OTD
+✅ Can compare all four regions side by side.
+FMCG-tagged User Dashboard
+Shows only FMCG journeys: Surf Excel, Maggi, Clinic Plus shipments.
+❌ Cement journeys (UltraTech, ACC, Ambuja) are NOT shown.
+
+Scenario 8: New Branch User with No Attributes Assigned Yet
+The Situation
+When a new user is added to the system, there may be a gap before their access tags are set up. The system needs a clear rule for what happens during this time.
+Real-World Example
+	•	A new employee, Sunil, joins the Pune branch on Monday.
+	•	His manager creates his account but has not yet assigned him any access tags.
+	•	Sunil needs to start working immediately, but his specific permissions are not defined yet.
+How It Is Set Up
+	•	The system offers two options, and each company can choose what works for them:
+	•	Option A (Strict): Sunil sees nothing until tags are assigned. This is safer but may delay work.
+	•	Option B (Open Start): Sunil gets full access to his branch, and restrictions are added later as tags are defined.
+What Should Happen
+	•	Under Option A: Sunil logs in and sees a message like “Access not configured. Contact your admin.”
+	•	Under Option B: Sunil logs in and sees all Pune branch data, which gets narrowed down once his tags are set.
+	•	The company’s admin decides which option to use during initial setup.
+	•	The chosen option applies consistently across the entire organisation.
+
+📦 Illustrative Example with Sample Data
+User
+Sunil (new joiner, Pune branch, no tags assigned yet)
+Option A – Strict Mode
+Sunil logs in. Dashboard shows: “No access configured. Please contact your administrator.”
+Journey #PUN-601 (Pune → Solapur, Nirma Detergent, ABC Logistics) — NOT visible.
+Journey #PUN-615 (Pune → Kolhapur, Amul Butter, Shreeji Transport) — NOT visible.
+❌ Sunil cannot see or do anything until admin assigns his tags.
+Option B – Open Start
+Sunil logs in and sees ALL Pune branch journeys:
+✅ Journey #PUN-601 (Pune → Solapur, Nirma Detergent, ABC Logistics) — Visible.
+✅ Journey #PUN-615 (Pune → Kolhapur, Amul Butter, Shreeji Transport) — Visible.
+Once admin assigns “FMCG only” tag, Cement journeys will be filtered out.
+
+Scenario 9: Temporary Access for a Limited Time
+The Situation
+Sometimes a person needs access to data or systems that they do not normally have, but only for a short period — such as when covering for someone on leave or handling a seasonal workload.
+Real-World Example
+	•	Ms. Deepa is the South Regional Head. She goes on a two-week medical leave.
+	•	Mr. Arvind, a senior operations executive, is asked to cover for her.
+	•	He needs the same access Ms. Deepa has, but only for those two weeks. After that, his access should automatically go back to normal.
+How It Is Set Up
+	•	Mr. Arvind is given temporary South Region access with a start date and end date.
+	•	The system tracks this as time-limited and auto-removes it when the period ends.
+What Should Happen
+	•	During the two weeks, Mr. Arvind can do everything Ms. Deepa normally does in the South region.
+	•	On the day the temporary access expires, the system automatically revokes it.
+	•	No admin action is needed to remove the access — it disappears on its own.
+	•	An audit trail records that the access was temporary and why it was given.
+
+📦 Illustrative Example with Sample Data
+Normal Access (Mr. Arvind)
+SPD North Ops Executive — can manage North region journeys only.
+Temporary Access (1 Mar – 14 Mar)
+✅ Journey #SPD-S-305 | Hyderabad → Vijayawada | TS-08-BB-2222 | 8 MT Ambuja Cement | Deccan Freight — CAN EDIT.
+✅ Journey #SPD-S-312 | Bengaluru → Mysuru | KA-01-JJ-9999 | 6 MT Asian Paints | Karnataka Roadlines — CAN EDIT.
+These are South region journeys that Mr. Arvind can now manage temporarily.
+After 14 Mar (Auto-Revoked)
+❌ Journey #SPD-S-305 — NO LONGER accessible. Back to view-only or hidden.
+✅ Journey #SPD-N-101 (Delhi → Jaipur) — Still accessible (his normal North access).
+
+Scenario 10: Access Based on Multiple Conditions at Once
+The Situation
+Sometimes a user’s access depends on more than one condition. For example, they may need to match a specific branch AND a specific product type AND a specific region — all at once.
+Real-World Example
+	•	Meera works at the SPD branch but only handles FMCG goods in the North region.
+	•	She should not see Cement data in the North region, and she should not see FMCG data in the South region.
+	•	Her access must match all three conditions: SPD branch + FMCG product + North region.
+How It Is Set Up
+	•	Meera is tagged with three labels: SPD branch, FMCG product type, and North region.
+	•	The system checks all three tags together before showing any data.
+	•	Only records that match ALL three conditions are visible to Meera.
+What Should Happen
+	•	Meera sees only FMCG journeys from the North region within SPD.
+	•	She does not see Cement journeys in SPD North.
+	•	She does not see FMCG journeys in SPD South or any other region.
+	•	If any one condition does not match, the record is hidden from her.
+
+📦 Illustrative Example with Sample Data
+User
+Meera (SPD + FMCG + North)
+✅ Visible (all 3 match)
+Journey #SPD-N-120 | Delhi → Jaipur | DL-01-KK-1010 | 9 MT Surf Excel (FMCG) | SPD Branch, North Region | Rajdhani Carriers
+❌ Hidden (wrong material)
+Journey #SPD-N-101 | Delhi → Jaipur | DL-01-AA-1111 | 10 MT ACC Cement (Cement) | SPD Branch, North Region | Rajdhani Carriers
+Reason: Material is Cement, not FMCG. Branch and region match, but material does not.
+❌ Hidden (wrong region)
+Journey #SPD-S-340 | Hyderabad → Tirupati | TS-08-LL-2020 | 7 MT Maggi Noodles (FMCG) | SPD Branch, South Region | Deccan Freight
+Reason: Region is South, not North. Branch and material match, but region does not.
+❌ Hidden (wrong branch)
+Journey #TMCV-N-055 | Lucknow → Kanpur | UP-32-DD-4444 | 5 MT Parle-G Biscuits (FMCG) | TMCV Branch, North Region | North Star Logistics
+Reason: Branch is TMCV, not SPD. Material and region match, but branch does not.
+
+Scenario 11: External Partner (Transporter or Vendor) Portal Access
+The Situation
+External parties like transporters, raw material suppliers or LSP may need limited access to the system — just enough to see their own indents, trips etc, without any visibility into internal operations or other partners’ data.
+Real-World Example
+	•	ABC Supplier is a third-party vendor company that provides raw materials for a shipper
+	•	They log into a portal to see their assigned trips, update delivery status, and upload proof of delivery.
+	•	They must not see trips assigned to other transporters, internal pricing, route strategies, or branch-level reports.
+How It Is Set Up
+	•	ABC Supplier is given a partner account tagged only with their set of routes, vehicles and materials
+	•	The system restricts their view to only records where ABC Supplier is the assigned Vendor.
+What Should Happen
+	•	ABC Supplier sees only their own trips — pickup points, delivery destinations, and status updates.
+	•	They cannot see trips belonging to XYZ Supplier or any other transporter.
+	•	They cannot access internal company data other trips or any transactions which are not theirs
+	•	They can update only the fields allowed (e.g., delivery status, proof of delivery).
+
+📦 Illustrative Example with Sample Data
+Logged-in User
+ABC Transport (external partner portal)
+✅ Visible to ABC Transport
+Journey #PUN-601 | Pune → Solapur | MH-12-FF-6666 | Material: 11 MT Nirma Detergent | Transporter: ABC Transport
+Journey #NAG-802 | Nagpur → Raipur | MH-31-GG-7777 | Material: 6 MT Parle Biscuits | Transporter: ABC Transport
+Fields visible: Pickup point, delivery point, ETA, journey status. Can upload POD (proof of delivery).
+❌ Hidden from ABC Transport
+Journey #CHN-150 | Chennai → Coimbatore | Transporter: Southern Express Lines — different transporter.
+Internal fields: Freight rate (₹45,000), margin (18%), customer billing amount — hidden.
+Dashboards, reports, and branch performance data — not accessible.
+
+Scenario 12: Emergency Access (Break-Glass Scenario)
+The Situation
+In urgent situations — like a shipment stuck at a checkpoint, a vehicle breakdown, or a time-sensitive delivery — someone outside the normal access scope may need to step in and take action immediately.
+Real-World Example
+	•	A high-value shipment is stuck at a toll plaza due to a documentation error.
+	•	The person who normally handles this route is unreachable.
+	•	Mr. Suresh, a senior manager from another region, needs to step in and update the journey record to clear the issue. He does not normally have access to this branch or region.
+How It Is Set Up
+	•	Mr. Suresh requests emergency access through the system.
+	•	An authorised admin grants one-time or short-duration access with a reason logged.
+	•	The system marks this as an emergency override.
+What Should Happen
+	•	Mr. Suresh gets temporary access to the specific journey or branch.
+	•	He can make the necessary changes to resolve the issue.
+	•	Once the emergency period ends, access is revoked automatically.
+	•	The system records who granted access, when, why, and what actions were taken.
+	•	This trail is available for audit and compliance review.
+
+📦 Illustrative Example with Sample Data
+Stuck Shipment
+Journey #SPD-S-380 | Hyderabad → Guntur | AP-09-MM-3030 (14MT Container)
+Material: 12 MT Samsung Electronics (High Value) | Transporter: Deccan Freight
+Status: Stuck at Nalgonda Toll Plaza — e-way bill expired. Needs immediate document update.
+Normal Access (Mr. Suresh)
+Mr. Suresh is SPD North region manager. Journey #SPD-S-380 is South region.
+❌ Normally, he CANNOT see or edit South region journeys.
+Emergency Override
+Admin grants Mr. Suresh 4-hour emergency access to Journey #SPD-S-380.
+Reason logged: “Shipment stuck at Nalgonda Toll — South region head unreachable.”
+✅ Mr. Suresh updates the e-way bill and releases the shipment.
+After 4 hours, access auto-revokes. All actions logged for audit.
+
+Scenario 13: Organisational Restructuring (Branch or Region Changes)
+The Situation
+When the company reorganises — such as merging branches, splitting regions, or moving areas from one head to another — the system must handle the transition smoothly without losing historical data.
+Real-World Example
+	•	SPD North region is being restructured. Three districts (Meerut, Agra, Mathura) that were under North are now moving to East.
+	•	Ms. Priya (North Head) should no longer see those three districts’ new data.
+	•	Mr. Kiran (East Head) should now see and manage those districts.
+	•	But historical records from when those districts were under North should still be accessible for reporting.
+How It Is Set Up
+	•	The master data relevant to the three districts must be are moved from SPD_NORTH to SPD_EAST.
+	•	Future journeys in those districts are automatically routed to East.
+	•	Historical data retains its original tags for audit purposes, or both heads get read access to the transition period data.
+What Should Happen
+	•	Mr. Kiran immediately starts seeing new journeys from the transferred districts.
+	•	Ms. Priya no longer sees new data from those districts.
+	•	Historical reports still show the correct data for the period when those districts were under North.
+	•	No data is lost or orphaned during the transition.
+
+📦 Illustrative Example with Sample Data
+Transferred Districts
+Meerut, Agra, Mathura — moving from SPD North to SPD East
+Before Restructuring
+Journey #SPD-N-190 | Meerut → Delhi | UP-14-NN-4040 | 8 MT Dalmia Cement | Jai Hind Transport
+✅ Ms. Priya (North Head) could see and manage this.
+❌ Mr. Kiran (East Head) could NOT see this.
+After Restructuring (New Journeys)
+Journey #SPD-E-450 | Meerut → Lucknow | UP-14-PP-5050 | 10 MT JK Cement | Eastern Roadways
+✅ Mr. Kiran (East Head) can see and manage this.
+❌ Ms. Priya (North Head) CANNOT see this new journey.
+Historical Data
+Journey #SPD-N-190 (old Meerut journey) still appears in North region’s historical reports.
+No data is lost. Reports for the pre-restructuring period remain accurate.
+
+Scenario 14: Maker-Checker (Create and Approve Workflow) //Tech to check if this needs to be handled with ABAC or using approval engine
+The Situation
+For certain high-value or sensitive operations, one person should create the record and a different person should review and approve it before it takes effect. This prevents errors and fraud.
+Real-World Example
+	•	Ravi, a dispatch executive, creates a new journey entry for a high-value electronics shipment.
+	•	Before the journey can be dispatched, it needs approval from his supervisor, Ms. Kavitha.
+	•	Ravi should not be able to approve his own entries. Ms. Kavitha should be able to approve but not necessarily create journeys herself.
+How It Is Set Up
+	•	Ravi has “Create” permission for journeys.
+	•	Ms. Kavitha has “Approve” permission for the same branch/segment.
+	•	The system enforces that the creator and approver must be different people.
+What Should Happen
+	•	Ravi creates the journey. It goes into “Pending Approval” status.
+	•	Ms. Kavitha reviews and either approves or sends it back for correction.
+	•	Ravi cannot approve his own journey, even if he has a supervisor role elsewhere.
+	•	Only after approval does the journey become active for dispatch.
+	•	The system logs who created and who approved each record.
+
+📦 Illustrative Example with Sample Data
+Journey Created by Ravi
+Journey #CHN-175 | Chennai → Bengaluru | TN-07-QQ-6060 (GPS-enabled container)
+Material: 5 MT Apple iPads (High Value — ₹2.1 Crore) | Transporter: Safe Express
+Status after creation: “Pending Approval”
+Ravi (Maker)
+✅ Created the journey with route, vehicle, material, and transporter details.
+❌ CANNOT click “Approve” on his own journey. Button is greyed out for him.
+❌ Journey stays in “Pending” until someone else approves.
+Ms. Kavitha (Checker)
+✅ Sees Journey #CHN-175 in her “Pending Approval” queue.
+✅ Reviews details: confirms vehicle is GPS-enabled, insurance is valid, transporter is approved for high-value goods.
+✅ Clicks “Approve” → Status changes to “Ready for Dispatch.”
+System logs: Created by Ravi at 10:15 AM, Approved by Kavitha at 11:30 AM.
+
+Scenario 15: Different Departments See Different Fields on the Same Record
+The Situation
+A single journey record may contain information relevant to multiple departments. But not every department should see every field. For example, finance should see costs, operations should see routes, and the customer should see only delivery status.
+Real-World Example
+	•	Journey #1234 has details like: route, vehicle, driver, freight cost, customer charges, margin, delivery ETA, and proof of delivery.
+	•	The operations team needs to see route, vehicle, driver, and ETA.
+	•	The finance team needs to see freight cost, customer charges, and margin.
+	•	The customer portal should only show delivery ETA and proof of delivery.
+How It Is Set Up
+	•	Each role/department user is tagged with attributes which contain fields they can see.
+	•	The system hides fields that a user does not have permission to view.
+	•	This applies on screens, reports, and any exported data.
+What Should Happen
+	•	An operations user opens journey #1234 and sees route, vehicle, driver, ETA. Cost fields are hidden.
+	•	A finance user opens the same journey and sees costs and margins. Route and driver details may be hidden or shown as read-only.
+	•	A customer logging into the portal sees only ETA and delivery proof.
+	•	No one sees more than what their role allows, even on the same record.
+
+📦 Illustrative Example with Sample Data
+Journey
+Journey #BOM-220 | Mumbai → Goa | MH-01-RR-7070 | Driver: Salim Khan | Material: 9 MT Cadbury Chocolates | Transporter: Western Cargo Movers | Freight: ₹38,000 | Customer Billing: ₹52,000 | Margin: 37% | ETA: 6 hrs | POD: Uploaded
+Ops User (Deepak) Sees
+✅ Route: Mumbai → Goa | Vehicle: MH-01-RR-7070 | Driver: Salim Khan | ETA: 6 hrs
+✅ Transporter: Western Cargo Movers | Status: In Transit
+❌ Freight (₹38,000), Customer Billing (₹52,000), Margin (37%) — HIDDEN
+Finance User (Sneha) Sees
+✅ Freight: ₹38,000 | Customer Billing: ₹52,000 | Margin: 37% | Invoice: INV-90412
+✅ Transporter: Western Cargo Movers | POD: Uploaded
+❌ Driver name (Salim Khan), Vehicle number — may be hidden or read-only
+Customer Portal (Mondelez India) Sees
+✅ Delivery ETA: 6 hrs | Status: In Transit | POD: Available after delivery
+❌ Route details, vehicle, driver, freight, margin — ALL HIDDEN
+
+Scenario 16: Bulk Actions Across Mixed Access Boundaries
+The Situation
+When a user tries to update many records at once (bulk action), some records may fall within their access and some may not. The system must handle this gracefully.
+Real-World Example
+	•	Mr. Anil selects 200 journeys to update the status to “Completed.”
+	•	Out of these, 150 are in his region (North), and 50 belong to the South region.
+	•	He has full access to North but view only access to South.
+How It Is Set Up
+	•	The system checks each record against Mr. Anil’s access tags before applying the update.
+What Should Happen
+	•	The system updates the 150 North region journeys successfully.
+	•	The 50 South region journeys are skipped.
+	•	Mr. Anil receives a clear summary: “150 updated. 50 skipped (Read only access).”
+	•	The system does not silently fail or block the entire operation because of the 50 inaccessible records.
+
+📦 Illustrative Example with Sample Data
+Bulk Action
+Mr. Anil selects 200 journeys → “Mark as Completed”
+Sample Updated (✅ North Region)
+Journey #SPD-N-101 | Delhi → Jaipur | 10 MT ACC Cement | Rajdhani Carriers → ✅ COMPLETED
+Journey #SPD-N-120 | Delhi → Lucknow | 9 MT Surf Excel | North Star Logistics → ✅ COMPLETED
+... and 148 more North region journeys updated successfully.
+Sample Skipped (❌ South Region)
+Journey #SPD-S-305 | Hyderabad → Vijayawada | 8 MT Ambuja Cement | Deccan Freight → ❌ SKIPPED
+Journey #SPD-S-312 | Bengaluru → Mysuru | 6 MT Asian Paints | Karnataka Roadlines → ❌ SKIPPED
+... and 48 more South region journeys skipped.
+System Message
+“Bulk update result: 150 of 200 journeys updated successfully. 50 journeys skipped (insufficient access). Click here to see skipped records.”
+
+Scenario 17: Auditor Access (Time-Scoped, Read-Only, Full Visibility)
+The Situation
+Internal or external auditors may need to review all data across the entire organisation, but only for a specific time period. They should see everything but change nothing.
+Real-World Example
+	•	An external auditor is reviewing all logistics operations for the financial year April 2024 – March 2025.
+	•	They need to see every journey, every branch, every transporter, and every cost entry within that period.
+	•	They must also see the action log — who created, edited, approved, or deleted each record.
+	•	They should not be able to modify any data.
+How It Is Set Up
+	•	The auditor is given a special access profile: read-only, all branches, all segments, with a date range filter of April 2024 to March 2025.
+	•	The profile includes access to system logs and audit trails.
+What Should Happen
+	•	The auditor can search and view all journeys within the specified period.
+	•	They can see action logs showing who did what and when.
+	•	They cannot edit, delete, or create any record.
+	•	Data outside the date range is not visible to them.
+	•	Once the audit engagement ends, their access is deactivated.
+
+📦 Illustrative Example with Sample Data
+Auditor
+PricewaterhouseCoopers (External Audit Team) | Access: Apr 2024 – Mar 2025 only
+✅ Visible (Within Date Range)
+Journey #SPD-N-101 | Delhi → Jaipur | Created: 15-Jun-2024 | 10 MT ACC Cement | Rajdhani Carriers | Freight: ₹55,000
+Journey #CHN-150 | Chennai → Coimbatore | Created: 22-Nov-2024 | 13 MT HUL Soaps | Southern Express | Freight: ₹45,000
+Audit Trail: “Journey #CHN-150 created by Karthik at 10:00 AM, edited by Anita at 2:30 PM, approved by Kavitha at 4:00 PM.”
+❌ Hidden (Outside Date Range)
+Journey #SPD-N-050 | Created: 10-Feb-2024 — before April 2024, NOT visible.
+Journey #SPD-N-220 | Created: 05-May-2025 — after March 2025, NOT visible.
+Restrictions
+❌ Cannot edit, delete, or create any journey.
+❌ Cannot export raw data without authorisation.
+Access auto-deactivated when audit engagement ends.
+
+Scenario 18: Conflicting Access Rules — Which One Wins?
+The Situation
+A user might end up with two tags that conflict with each other. For example, one tag gives them full access to a region, and another tag says they can only view data in the same region. The system must have a clear rule for which one applies.
+Real-World Example
+	•	Ms. Lakshmi has two tags:
+	•	Tag 1: SPD_NORTH → Full access (create, edit, delete).
+	•	Tag 2: SPD_ALL → View-only access (as a business head).
+	•	When she opens a North region journey, should she have full access or view-only?
+How It Is Set Up
+	•	The system must follow one of these pre-decided rules:
+	•	Rule A (Most Permissive Wins): Full access wins because it is the broader permission.
+	•	Rule B (Most Restrictive Wins): View-only wins because it is the safer default.
+	•	Rule C (Explicit Priority): The admin sets which tag takes priority over others.
+	•	The chosen rule is decided by the company during initial setup and applied consistently.
+What Should Happen
+	•	If Rule A: Ms. Lakshmi can edit North region journeys (full access wins).
+	•	If Rule B: Ms. Lakshmi can only view North region journeys (stricter rule wins).
+	•	If Rule C: Depends on what priority the admin has set for each tag.
+	•	The system never leaves this ambiguous — it always resolves to a clear answer.
+	•	Admins can review conflict resolution logic from the settings panel.
+
+📦 Illustrative Example with Sample Data
+User
+Ms. Lakshmi | Tag 1: SPD_NORTH (Full CRUD) | Tag 2: SPD_ALL (View-Only)
+Journey in Question
+Journey #SPD-N-101 | Delhi → Jaipur | DL-01-AA-1111 | 10 MT ACC Cement | Rajdhani Carriers
+This journey is in SPD North — both tags apply.
+If Rule A (Most Permissive Wins)
+✅ Ms. Lakshmi CAN edit Journey #SPD-N-101 because SPD_NORTH grants full access.
+SPD_NORTH (Full CRUD) overrides SPD_ALL (View-Only) for North region data.
+If Rule B (Most Restrictive Wins)
+❌ Ms. Lakshmi can only VIEW Journey #SPD-N-101.
+SPD_ALL (View-Only) overrides SPD_NORTH (Full CRUD) as the stricter rule.
+If Rule C (Admin Priority)
+Admin has set SPD_NORTH priority = 1 (highest), SPD_ALL priority = 2.
+✅ SPD_NORTH wins → Ms. Lakshmi CAN edit North region journeys.
+
+Scenario 19: Notifications and Alerts Filtered by Access
+The Situation
+Users should only receive alerts and notifications for events within their area of responsibility. A North region head should not be disturbed by South region alerts.
+Real-World Example
+	•	A shipment in the South region is delayed by 6 hours, triggering a delay alert.
+	•	Ms. Priya is the North Regional Head. Mr. Kiran is the South Regional Head.
+	•	Only Mr. Kiran should receive the delay notification. Ms. Priya should not.
+How It Is Set Up
+	•	Notifications are filtered using the same access tags that control data visibility.
+	•	Alerts are sent only to users whose tags match the affected journey’s attributes.
+What Should Happen
+	•	Mr. Kiran receives the delay alert for the South region shipment.
+	•	Ms. Priya does not receive any notification about it.
+	•	A Business Head with SPD_ALL access may receive it if their notification preferences include all-region alerts.
+	•	Users are not flooded with irrelevant notifications outside their scope.
+
+📦 Illustrative Example with Sample Data
+Delayed Shipment
+Journey #SPD-S-312 | Bengaluru → Mysuru | KA-01-JJ-9999 | 6 MT Asian Paints | Karnataka Roadlines
+Alert: “Delay of 6 hours. Vehicle breakdown near Mandya. Expected new ETA: 11:00 PM.”
+Mr. Kiran (South Head)
+✅ Receives alert: “⚠️ Journey #SPD-S-312 delayed by 6 hrs. Vehicle breakdown near Mandya.”
+✅ Gets SMS + in-app notification + email.
+Ms. Priya (North Head)
+❌ Does NOT receive any notification about Journey #SPD-S-312.
+Her alerts only cover North region journeys like #SPD-N-101 (Delhi → Jaipur).
+Mr. Sharma (Business Head – SPD_ALL)
+✅ May receive the alert if his notification preferences are set to “All regions.”
+❌ Will NOT receive it if preferences are set to “Critical only” and this is not critical.
+
+Scenario 20: Self-Service Access Delegation
+The Situation
+A branch head or team lead going offline (vacation, travel, illness) should be able to delegate their access to a trusted colleague for a defined period, without needing to contact an IT admin every time.
+Real-World Example
+	•	Mr. Amit, the Pune Branch Head, is going on a week-long trip with limited connectivity.
+	•	He wants to delegate his access to Ms. Swati, his deputy, for that week.
+	•	He does this himself from the system without raising a support ticket.
+How It Is Set Up
+	•	The system provides a “Delegate My Access” option for authorised roles.
+	•	Mr. Amit selects Ms. Swati, sets the start and end dates, and confirms.
+	•	The system grants Ms. Swati the same access Mr. Amit has, for the specified duration only.
+What Should Happen
+	•	Ms. Swati gets Mr. Amit’s access for exactly one week.
+	•	After the week ends, her access automatically reverts to her original permissions.
+	•	The system logs the delegation: who delegated, to whom, for how long, and why.
+	•	Mr. Amit can cancel the delegation early if he returns sooner.
+
+📦 Illustrative Example with Sample Data
+Delegator
+Mr. Amit (Pune Branch Head) — going offline 10 Mar – 17 Mar
+Delegate
+Ms. Swati (Deputy Branch Head) — normally has limited Pune access
+During Delegation (10–17 Mar)
+✅ Ms. Swati can manage Journey #PUN-601 | Pune → Solapur | 11 MT Nirma Detergent | ABC Logistics
+✅ Ms. Swati can approve Journey #PUN-620 | Pune → Aurangabad | 8 MT Dabur Products | Shreeji Transport
+✅ Ms. Swati has full Pune Branch Head access — same as Mr. Amit.
+After 17 Mar (Auto-Reverted)
+❌ Ms. Swati’s access reverts to her normal deputy-level permissions.
+System log: “Delegation by Amit to Swati | 10 Mar – 17 Mar | Reason: Travel leave | Auto-reverted.”
+
+Scenario 22: Access Based on Journey Status or Stage
+The Situation
+Sometimes, access should change depending on what stage a journey is in. For example, a dispatcher can edit a journey while it is being planned, but once it is dispatched, only a supervisor should be able to make changes.
+Real-World Example
+	•	A journey goes through these stages: Planned → Dispatched → In Transit → Delivered → Closed.
+	•	Ravi (dispatcher) can edit the journey while it is in “Planned” status.
+	•	Once it moves to “Dispatched,” only his supervisor, Ms. Kavitha, can make changes.
+	•	Once it is “Closed,” no one can edit it — it becomes a permanent record.
+How It Is Set Up
+	•	Permissions are linked to both user tags AND journey status.
+	•	Dispatcher role: edit allowed only when status is “Planned.”
+	•	Supervisor role: edit allowed until status is “Closed.”
+	•	Closed journeys: read-only for everyone.
+What Should Happen
+	•	Ravi can modify journey details while the journey is being planned.
+	•	Once dispatched, Ravi can view but not change the journey. Only Ms. Kavitha can.
+	•	After the journey is marked “Closed,” neither Ravi nor Ms. Kavitha can edit it.
+	•	This protects completed records from accidental or unauthorised changes.
+
+📦 Illustrative Example with Sample Data
+Journey
+Journey #CHN-175 | Chennai → Bengaluru | TN-07-QQ-6060 | 5 MT Apple iPads | Safe Express
+Stage: PLANNED
+✅ Ravi (Dispatcher) CAN edit: change vehicle from TN-07-QQ-6060 to TN-07-SS-8080, update material qty, reassign transporter.
+✅ Ms. Kavitha (Supervisor) CAN also edit.
+Stage: DISPATCHED
+❌ Ravi CANNOT edit anymore. Journey is locked for dispatchers.
+✅ Ms. Kavitha CAN still edit: correct a documentation error, update driver details.
+Stage: IN TRANSIT
+❌ Ravi: View-only.
+✅ Ms. Kavitha: Can update ETA, add remarks, handle exceptions.
+Stage: CLOSED
+❌ Ravi: View-only. All edit buttons disabled.
+❌ Ms. Kavitha: View-only. All edit buttons disabled.
+Journey becomes a permanent, tamper-proof record.
+
+
+Scenario 23: Access Revocation When an Employee Leaves or Transfers
+The Situation
+When someone leaves the company, moves to a different department, or is transferred to another branch, their old access must be removed promptly to prevent unauthorised use.
+Real-World Example
+	•	Rajesh was the Chennai Branch Head. He resigns and his last working day is Friday.
+	•	By Saturday, he should have zero access to the system.
+	•	Separately, Meena transfers from the North region to the South region. Her North access should end, and South access should begin.
+How It Is Set Up
+	•	HR or admin triggers an access change when an employee exits or transfers.
+	•	The system supports immediate deactivation of accounts.
+	•	For transfers, old tags are removed and new tags are added on the effective date.
+What Should Happen
+	•	After Friday, Rajesh cannot log in or access any data.
+	•	Meena’s North region access ends, and South region access begins on the transfer date.
+	•	Historical records still show Rajesh and Meena as the people who performed past actions (for audit purposes).
+	•	The system logs the date and reason for every access change.
+
+📦 Illustrative Example with Sample Data
+Rajesh (Resignation)
+Last working day: Friday, 14 Mar 2025.
+Before: ✅ Could manage Journey #CHN-150 | Chennai → Coimbatore | 13 MT HUL Soaps | Southern Express
+Saturday 15 Mar: ❌ Login attempt → “Account deactivated. Contact HR.”
+Historical records: Journey #CHN-150 still shows “Created by Rajesh” for audit trail.
+Meena (Transfer: North → South)
+Transfer effective: 1 Apr 2025.
+Before 1 Apr: ✅ Could manage Journey #SPD-N-101 (Delhi → Jaipur) | ❌ Could NOT see #SPD-S-305 (Hyderabad → Vijayawada)
+After 1 Apr: ❌ CANNOT see Journey #SPD-N-101 anymore | ✅ CAN now manage #SPD-S-305
+System log: “Meena — North access removed, South access granted | Effective: 1 Apr 2025 | Reason: Internal transfer.”
+

@@ -1,85 +1,119 @@
-import type { Attribute, CrudPermission, User, UserAttributeAssignment } from '../../types';
-import { PRESET_PERMISSIONS, ALL_CRUD } from '../../types';
 import { MASTER_DATA_ITEMS } from '../../data/mockData';
+import type { Attribute, User, CrudPermission, MasterDataItem } from '../../types';
+import { PRESET_PERMISSIONS } from '../../types';
 import type { MockJourney } from '../../data/mockData';
 
 export interface JourneyAccess {
   canReadRow: boolean;
   canUpdateRow: boolean;
-  missingReadItems: string[];
-  missingUpdateItems: string[];
+  canCreateRow: boolean;
+  canDeleteRow: boolean;
+  matchedAttribute: string | null;
+  matchedCrud: CrudPermission[];
+  missingItems: { itemId: string; itemName: string; type: string }[];
 }
 
-function getEffectivePermissions(
-  assignment: UserAttributeAssignment,
-  attr: Attribute
-): CrudPermission[] {
-  if (assignment.crudOverride != null) {
-    if (assignment.crudOverride === 'custom') return assignment.customOverridePermissions ?? [];
-    return PRESET_PERMISSIONS[assignment.crudOverride];
-  }
-  const preset = attr.masterDataMapping.crudPreset;
-  if (preset === 'custom') return attr.masterDataMapping.customPermissions ?? [];
-  return PRESET_PERMISSIONS[preset];
+const itemById = new Map<string, MasterDataItem>(MASTER_DATA_ITEMS.map((i) => [i.id, i]));
+
+function doesAttributeCoverItem(
+  attr: Attribute,
+  itemId: string,
+  allItems: Map<string, MasterDataItem>
+): boolean {
+  const item = allItems.get(itemId);
+  if (!item) return false;
+  const restriction = attr.masterDataMapping.typeRestrictions[item.type];
+  if (!restriction) return true;
+  if (restriction.mode === 'all') return true;
+  if (restriction.mode === 'none') return false;
+  return restriction.selectedItemIds.includes(itemId);
 }
 
-export const buildUserPermissionMap = (
-  attributes: Attribute[],
-  currentUser: User
-): Map<string, Set<CrudPermission>> => {
-  const permissionMap = new Map<string, Set<CrudPermission>>();
-
-  for (const assignment of currentUser.attributeAssignments) {
-    const attr = attributes.find((a) => a.id === assignment.attributeId);
-    if (!attr) continue;
-    const perms = getEffectivePermissions(assignment, attr);
-    for (const itemId of attr.masterDataMapping.selectedItemIds) {
-      const existing = permissionMap.get(itemId) ?? new Set<CrudPermission>();
-      for (const perm of perms) existing.add(perm);
-      permissionMap.set(itemId, existing);
-    }
-  }
-
-  if (currentUser.legoActorType === 'branch_user' && currentUser.defaultBranchAccess && currentUser.branchId) {
-    const scopedItems = MASTER_DATA_ITEMS.filter(
-      (item) => item.onboardedAt === 'company' || item.branch === currentUser.branchId
-    );
-    for (const item of scopedItems) {
-      permissionMap.set(item.id, new Set<CrudPermission>(ALL_CRUD));
-    }
-  }
-
-  return permissionMap;
-};
-
-const hasReadPermission = (perms?: Set<CrudPermission>): boolean => {
-  if (!perms) return false;
-  return (
-    perms.has('read') ||
-    perms.has('create') ||
-    perms.has('update') ||
-    perms.has('delete')
-  );
-};
-
-export const resolveJourneyAccess = (
+function doesAttributeCoverJourney(
+  attr: Attribute,
   journey: MockJourney,
-  permissionMap: Map<string, Set<CrudPermission>>
-): JourneyAccess => {
+  allItems: Map<string, MasterDataItem>
+): boolean {
   const requiredItemIds = [
     journey.routeItemId,
     journey.vehicleTypeItemId,
     journey.materialItemId,
     journey.transporterItemId,
   ];
+  return requiredItemIds.every((itemId) => doesAttributeCoverItem(attr, itemId, allItems));
+}
 
-  const missingReadItems = requiredItemIds.filter((itemId) => !hasReadPermission(permissionMap.get(itemId)));
-  const missingUpdateItems = requiredItemIds.filter((itemId) => !permissionMap.get(itemId)?.has('update'));
+export function resolveJourneyAccess(
+  journey: MockJourney,
+  attributes: Attribute[],
+  user: User
+): JourneyAccess {
+  let bestCrud: CrudPermission[] = [];
+  let matchedAttrId: string | null = null;
+
+  for (const assignment of user.attributeAssignments) {
+    const attr = attributes.find((a) => a.id === assignment.attributeId);
+    if (!attr) continue;
+
+    if (doesAttributeCoverJourney(attr, journey, itemById)) {
+      const perms =
+        assignment.crudPreset === 'custom'
+          ? (assignment.customPermissions ?? [])
+          : PRESET_PERMISSIONS[assignment.crudPreset];
+
+      if (perms.length > bestCrud.length) {
+        bestCrud = perms;
+        matchedAttrId = attr.id;
+      }
+    }
+  }
+
+  if (bestCrud.length === 0 && user.defaultBranchAccess && user.branchId) {
+    if (journey.branchId === user.branchId) {
+      bestCrud = ['create', 'read', 'update', 'delete'];
+      matchedAttrId = '__default_branch_access__';
+    }
+  }
+
+  const canRead =
+    bestCrud.includes('read') ||
+    bestCrud.includes('create') ||
+    bestCrud.includes('update') ||
+    bestCrud.includes('delete');
+
+  const missingItems: { itemId: string; itemName: string; type: string }[] = [];
+  if (!canRead) {
+    const requiredItemIds = [
+      journey.routeItemId,
+      journey.vehicleTypeItemId,
+      journey.materialItemId,
+      journey.transporterItemId,
+    ];
+    for (const itemId of requiredItemIds) {
+      const item = itemById.get(itemId);
+      let covered = false;
+      for (const assignment of user.attributeAssignments) {
+        const attr = attributes.find((a) => a.id === assignment.attributeId);
+        if (attr && doesAttributeCoverItem(attr, itemId, itemById)) {
+          covered = true;
+          break;
+        }
+      }
+      if (!covered && item) {
+        missingItems.push({ itemId, itemName: item.name, type: item.type });
+      }
+    }
+  }
 
   return {
-    canReadRow: missingReadItems.length === 0,
-    canUpdateRow: missingUpdateItems.length === 0,
-    missingReadItems,
-    missingUpdateItems,
+    canReadRow: canRead,
+    canUpdateRow: bestCrud.includes('update'),
+    canCreateRow: bestCrud.includes('create'),
+    canDeleteRow: bestCrud.includes('delete'),
+    matchedAttribute: matchedAttrId,
+    matchedCrud: bestCrud,
+    missingItems,
   };
-};
+}
+
+export { doesAttributeCoverItem, doesAttributeCoverJourney };

@@ -1,25 +1,20 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Drawer, Button, Input, Tabs, Space, Typography, message, Alert, Radio, Tooltip, Select, Checkbox } from 'antd';
+import { Drawer, Button, Input, Tabs, Space, Typography, message, Alert, Radio, Tooltip } from 'antd';
 import { InfoCircleOutlined } from '@ant-design/icons';
 import MasterDataTab from './MasterDataTab';
 import FieldsTab from './FieldsTab';
 import { useAppContext } from '../../context/AppContext';
 import { BRANCHES } from '../../data/mockData';
-import type { Attribute, CrudPreset, CrudPermission } from '../../types';
+import type { Attribute, MasterDataTypeRestriction } from '../../types';
+import { MASTER_DATA_TYPE_KEYS } from '../../types';
 
-const PRESET_OPTIONS: { value: CrudPreset; label: string }[] = [
-  { value: 'full_crud', label: 'Full CRUD' },
-  { value: 'read_only', label: 'Read Only' },
-  { value: 'create_read', label: 'Create + Read' },
-  { value: 'custom', label: 'Custom' },
-];
-
-const CRUD_OPTIONS: { value: CrudPermission; label: string }[] = [
-  { value: 'create', label: 'Create' },
-  { value: 'read', label: 'Read' },
-  { value: 'update', label: 'Update' },
-  { value: 'delete', label: 'Delete' },
-];
+function defaultTypeRestrictions(): Record<string, MasterDataTypeRestriction> {
+  const defaults: Record<string, MasterDataTypeRestriction> = {};
+  for (const type of MASTER_DATA_TYPE_KEYS) {
+    defaults[type] = { mode: 'all', selectedItemIds: [] };
+  }
+  return defaults;
+}
 
 interface Props {
   open: boolean;
@@ -47,14 +42,14 @@ export default function CreateAttributeDrawer({ open, editingAttribute, onClose 
   const [description, setDescription] = useState('');
   const [onboardingType, setOnboardingType] = useState<'company' | 'branch'>('company');
   const [selectedBranches, setSelectedBranches] = useState<string[] | 'ALL'>('ALL');
-  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
-  const [crudPreset, setCrudPreset] = useState<CrudPreset>('full_crud');
-  const [customPermissions, setCustomPermissions] = useState<CrudPermission[]>([]);
+  const [typeRestrictions, setTypeRestrictions] = useState<Record<string, MasterDataTypeRestriction>>(
+    defaultTypeRestrictions
+  );
   const [selectedFields, setSelectedFields] = useState<string[]>([]);
 
-  const [originalItemIds, setOriginalItemIds] = useState<string[]>([]);
-  const [originalPreset, setOriginalPreset] = useState<CrudPreset>('full_crud');
-  const [originalCustomPermissions, setOriginalCustomPermissions] = useState<CrudPermission[]>([]);
+  const [originalTypeRestrictions, setOriginalTypeRestrictions] = useState<
+    Record<string, MasterDataTypeRestriction>
+  >(defaultTypeRestrictions());
   const [originalFields, setOriginalFields] = useState<string[]>([]);
 
   const defaultOnboardingType: 'company' | 'branch' = isCentralScenario
@@ -62,6 +57,23 @@ export default function CreateAttributeDrawer({ open, editingAttribute, onClose 
     : isBranchAdminInBranchScenario
       ? 'branch'
       : 'company';
+
+  const totalSelectedItems = useMemo(
+    () =>
+      Object.values(typeRestrictions).reduce(
+        (sum, r) => (r.mode === 'specific' ? sum + r.selectedItemIds.length : sum),
+        0
+      ),
+    [typeRestrictions]
+  );
+
+  const hasAnyMasterDataCoverage = useMemo(() => {
+    for (const r of Object.values(typeRestrictions)) {
+      if (r.mode === 'all') return true;
+      if (r.mode === 'specific' && r.selectedItemIds.length > 0) return true;
+    }
+    return false;
+  }, [typeRestrictions]);
 
   useEffect(() => {
     if (open && editingAttribute) {
@@ -73,13 +85,14 @@ export default function CreateAttributeDrawer({ open, editingAttribute, onClose 
       } else {
         setSelectedBranches(editingAttribute.masterDataMapping.selectedBranches);
       }
-      setSelectedItemIds([...editingAttribute.masterDataMapping.selectedItemIds]);
-      setCrudPreset(editingAttribute.masterDataMapping.crudPreset);
-      setCustomPermissions([...editingAttribute.masterDataMapping.customPermissions]);
+      const tr = editingAttribute.masterDataMapping.typeRestrictions;
+      const merged: Record<string, MasterDataTypeRestriction> = { ...defaultTypeRestrictions() };
+      for (const key of MASTER_DATA_TYPE_KEYS) {
+        if (tr[key]) merged[key] = { ...tr[key], selectedItemIds: [...(tr[key].selectedItemIds || [])] };
+      }
+      setTypeRestrictions(merged);
       setSelectedFields([...editingAttribute.fieldMapping.selectedFields]);
-      setOriginalItemIds([...editingAttribute.masterDataMapping.selectedItemIds]);
-      setOriginalPreset(editingAttribute.masterDataMapping.crudPreset);
-      setOriginalCustomPermissions([...editingAttribute.masterDataMapping.customPermissions]);
+      setOriginalTypeRestrictions(JSON.parse(JSON.stringify(merged)));
       setOriginalFields([...editingAttribute.fieldMapping.selectedFields]);
     } else if (open) {
       setLabel('');
@@ -90,13 +103,9 @@ export default function CreateAttributeDrawer({ open, editingAttribute, onClose 
       } else {
         setSelectedBranches('ALL');
       }
-      setSelectedItemIds([]);
-      setCrudPreset('full_crud');
-      setCustomPermissions([]);
+      setTypeRestrictions(defaultTypeRestrictions());
       setSelectedFields([]);
-      setOriginalItemIds([]);
-      setOriginalPreset('full_crud');
-      setOriginalCustomPermissions([]);
+      setOriginalTypeRestrictions(defaultTypeRestrictions());
       setOriginalFields([]);
     }
   }, [open, editingAttribute, defaultOnboardingType, isBranchAdminInBranchScenario, currentUser.branchId]);
@@ -104,7 +113,7 @@ export default function CreateAttributeDrawer({ open, editingAttribute, onClose 
   const handleOnboardingTypeChange = (type: 'company' | 'branch') => {
     if (type === onboardingType) return;
     setOnboardingType(type);
-    setSelectedItemIds([]);
+    setTypeRestrictions(defaultTypeRestrictions());
     if (isBranchAdminInBranchScenario && type === 'branch' && currentUser.branchId) {
       setSelectedBranches([currentUser.branchId]);
     } else if (type === 'company') {
@@ -116,35 +125,37 @@ export default function CreateAttributeDrawer({ open, editingAttribute, onClose 
 
   const changeSummary = useMemo(() => {
     if (!isEdit) return null;
-    const origIds = new Set(originalItemIds);
-    const currIds = new Set(selectedItemIds);
-    const addedItems = selectedItemIds.filter((id) => !origIds.has(id)).length;
-    const removedItems = originalItemIds.filter((id) => !currIds.has(id)).length;
-    const presetChanged = originalPreset !== crudPreset;
-    const customChanged =
-      crudPreset === 'custom' &&
-      (originalCustomPermissions.length !== customPermissions.length ||
-        customPermissions.some((p) => !originalCustomPermissions.includes(p)));
+    let itemsChanged = 0;
+    for (const key of MASTER_DATA_TYPE_KEYS) {
+      const a = originalTypeRestrictions[key];
+      const b = typeRestrictions[key];
+      if (!a || !b) continue;
+      if (a.mode !== b.mode) itemsChanged += 1;
+      else if (a.mode === 'specific' && b.mode === 'specific') {
+        const setA = new Set(a.selectedItemIds);
+        const setB = new Set(b.selectedItemIds);
+        if (setA.size !== setB.size || a.selectedItemIds.some((id) => !setB.has(id)))
+          itemsChanged += 1;
+      }
+    }
     const addedFields = selectedFields.filter((id) => !originalFields.includes(id)).length;
     const removedFields = originalFields.filter((id) => !selectedFields.includes(id)).length;
-    const total = addedItems + removedItems + (presetChanged || customChanged ? 1 : 0) + addedFields + removedFields;
+    const total = itemsChanged + addedFields + removedFields;
     if (total === 0) return null;
     const parts: string[] = [];
-    if (addedItems) parts.push(`+${addedItems} items`);
-    if (removedItems) parts.push(`-${removedItems} items`);
-    if (presetChanged || customChanged) parts.push('permission preset changed');
+    if (itemsChanged) parts.push('master data changed');
     if (addedFields) parts.push(`+${addedFields} fields`);
     if (removedFields) parts.push(`-${removedFields} fields`);
     return parts.join(', ');
-  }, [isEdit, selectedItemIds, selectedFields, originalItemIds, originalPreset, originalCustomPermissions, originalFields, crudPreset, customPermissions]);
+  }, [isEdit, typeRestrictions, selectedFields, originalTypeRestrictions, originalFields]);
 
   const handleSave = () => {
     if (!label.trim()) {
       message.error('Attribute label is required');
       return;
     }
-    if (selectedItemIds.length === 0 && selectedFields.length === 0) {
-      message.error('Select at least one master data item or field');
+    if (!hasAnyMasterDataCoverage && selectedFields.length === 0) {
+      message.error('Select at least one master data type (All/Specific) or field');
       return;
     }
 
@@ -160,9 +171,7 @@ export default function CreateAttributeDrawer({ open, editingAttribute, onClose 
       masterDataMapping: {
         onboardingType,
         selectedBranches,
-        selectedItemIds,
-        crudPreset,
-        customPermissions: crudPreset === 'custom' ? customPermissions : [],
+        typeRestrictions: { ...typeRestrictions },
       },
       fieldMapping: { selectedFields },
       assignedUsers: editingAttribute?.assignedUsers || [],
@@ -181,14 +190,14 @@ export default function CreateAttributeDrawer({ open, editingAttribute, onClose 
   const tabItems = [
     {
       key: 'master-data',
-      label: `Master Data (${selectedItemIds.length})`,
+      label: `Master Data (${totalSelectedItems})`,
       children: (
         <MasterDataTab
           onboardingType={onboardingType}
           selectedBranches={selectedBranches}
-          selectedItemIds={selectedItemIds}
+          typeRestrictions={typeRestrictions}
           onChangeBranches={setSelectedBranches}
-          onChangeItems={setSelectedItemIds}
+          onChangeRestrictions={setTypeRestrictions}
           branchSelectorDisabled={isBranchAdminInBranchScenario}
           lockedBranchName={lockedBranchName}
           branchSingleSelect={!isCentralScenario && onboardingType === 'branch' && !isBranchAdminInBranchScenario}
@@ -241,10 +250,13 @@ export default function CreateAttributeDrawer({ open, editingAttribute, onClose 
               <Radio value="company">
                 <Space size={4}>
                   {isCentralScenario ? 'Centrally Onboarded' : 'Company Level'}
-                  <Tooltip title={isCentralScenario
-                    ? 'One pool of master data at company level. Attributes are lenses/slices carved out of this single pool.'
-                    : 'Maps master data across one or many branches. These attributes can only be assigned to company-level users.'
-                  }>
+                  <Tooltip
+                    title={
+                      isCentralScenario
+                        ? 'One pool of master data at company level. Attributes are lenses/slices carved out of this single pool.'
+                        : 'Maps master data across one or many branches. These attributes can only be assigned to company-level users.'
+                    }
+                  >
                     <InfoCircleOutlined style={{ color: '#1677ff', fontSize: 13 }} />
                   </Tooltip>
                 </Space>
@@ -252,10 +264,13 @@ export default function CreateAttributeDrawer({ open, editingAttribute, onClose 
               <Radio value="branch">
                 <Space size={4}>
                   {isCentralScenario ? 'Branch Wise' : 'Branch Specific'}
-                  <Tooltip title={isCentralScenario
-                    ? 'Each branch owns its own data independently.'
-                    : 'Scoped to a single branch\'s data. These attributes can only be assigned to branch-level users of that branch.'
-                  }>
+                  <Tooltip
+                    title={
+                      isCentralScenario
+                        ? 'Each branch owns its own data independently.'
+                        : "Scoped to a single branch's data. These attributes can only be assigned to branch-level users of that branch."
+                    }
+                  >
                     <InfoCircleOutlined style={{ color: '#1677ff', fontSize: 13 }} />
                   </Tooltip>
                 </Space>
@@ -307,43 +322,9 @@ export default function CreateAttributeDrawer({ open, editingAttribute, onClose 
           />
         </div>
 
-        <div>
-          <Typography.Text strong style={{ fontSize: 13, display: 'block', marginBottom: 8 }}>
-            Attribute Permissions
-          </Typography.Text>
-          <Select
-            value={crudPreset}
-            onChange={(val) => {
-              setCrudPreset(val);
-              if (val !== 'custom') setCustomPermissions([]);
-            }}
-            options={PRESET_OPTIONS}
-            style={{ width: '100%', marginBottom: 8 }}
-          />
-          {crudPreset === 'custom' && (
-            <div style={{ marginTop: 8 }}>
-              {CRUD_OPTIONS.map(({ value, label: l }) => (
-                <Checkbox
-                  key={value}
-                  checked={customPermissions.includes(value)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setCustomPermissions([...customPermissions, value]);
-                    } else {
-                      setCustomPermissions(customPermissions.filter((p) => p !== value));
-                    }
-                  }}
-                  style={{ marginRight: 16 }}
-                >
-                  {l}
-                </Checkbox>
-              ))}
-            </div>
-          )}
-          <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>
-            This permission applies to all master data items in this attribute. Individual users can override this during assignment.
-          </Typography.Text>
-        </div>
+        <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
+          CRUD permissions are set when assigning this attribute to users, not on the attribute itself.
+        </Typography.Text>
 
         {isEdit && changeSummary && (
           <Alert message={`Pending changes: ${changeSummary}`} type="info" showIcon />

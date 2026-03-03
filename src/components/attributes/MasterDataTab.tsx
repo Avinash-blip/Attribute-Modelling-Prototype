@@ -5,25 +5,40 @@ import BranchSelector from './BranchSelector';
 import MasterDataPicker from './MasterDataPicker';
 import BulkUploadModal from './BulkUploadModal';
 import { MASTER_DATA_ITEMS, BRANCHES } from '../../data/mockData';
+import { MASTER_DATA_TYPE_KEYS } from '../../types';
+import type { MasterDataTypeRestriction, MasterDataItem } from '../../types';
 
 interface Props {
   onboardingType: 'company' | 'branch';
   selectedBranches: string[] | 'ALL';
-  selectedItemIds: string[];
+  typeRestrictions: Record<string, MasterDataTypeRestriction>;
   onChangeBranches: (branches: string[] | 'ALL') => void;
-  onChangeItems: (ids: string[]) => void;
+  onChangeRestrictions: (restrictions: Record<string, MasterDataTypeRestriction>) => void;
   branchSelectorDisabled?: boolean;
   lockedBranchName?: string;
   branchSingleSelect?: boolean;
   forceBranchSelector?: boolean;
 }
 
+function getAvailableItems(
+  onboardingType: 'company' | 'branch',
+  selectedBranches: string[] | 'ALL'
+): MasterDataItem[] {
+  if (onboardingType === 'company') {
+    return MASTER_DATA_ITEMS.filter((i) => i.onboardedAt === 'company');
+  }
+  const branchIds = selectedBranches === 'ALL' ? BRANCHES.map((b) => b.id) : selectedBranches;
+  return MASTER_DATA_ITEMS.filter(
+    (i) => i.onboardedAt === 'company' || (i.branch && branchIds.includes(i.branch))
+  );
+}
+
 export default function MasterDataTab({
   onboardingType,
   selectedBranches,
-  selectedItemIds,
+  typeRestrictions,
   onChangeBranches,
-  onChangeItems,
+  onChangeRestrictions,
   branchSelectorDisabled = false,
   lockedBranchName,
   branchSingleSelect = false,
@@ -31,49 +46,74 @@ export default function MasterDataTab({
 }: Props) {
   const [bulkOpen, setBulkOpen] = useState(false);
 
+  const availableItems = useMemo(
+    () => getAvailableItems(onboardingType, selectedBranches),
+    [onboardingType, selectedBranches]
+  );
+
+  const totalSelectedItems = useMemo(
+    () =>
+      Object.values(typeRestrictions).reduce(
+        (sum, r) => (r.mode === 'specific' ? sum + r.selectedItemIds.length : sum),
+        0
+      ),
+    [typeRestrictions]
+  );
+
   useEffect(() => {
-    if (selectedItemIds.length > 0) return;
-    if (onboardingType === 'company' && !forceBranchSelector) {
-      const items = MASTER_DATA_ITEMS.filter((i) => i.onboardedAt === 'company');
-      if (items.length > 0) {
-        onChangeItems(items.map((i) => i.id));
-      }
-    } else {
-      const branchIds = selectedBranches === 'ALL' ? BRANCHES.map((b) => b.id) : selectedBranches;
-      if (branchIds.length === 0) return;
-      const items = MASTER_DATA_ITEMS.filter(
-        (i) => i.onboardedAt === 'company' || (i.branch && branchIds.includes(i.branch))
-      );
-      if (items.length > 0) {
-        onChangeItems(items.map((i) => i.id));
-      }
+    if (totalSelectedItems > 0) return;
+    const branchIds = selectedBranches === 'ALL' ? BRANCHES.map((b) => b.id) : selectedBranches;
+    if (onboardingType === 'branch' && branchIds.length === 0) return;
+    const byType: Record<string, string[]> = {};
+    for (const type of MASTER_DATA_TYPE_KEYS) {
+      byType[type] = availableItems.filter((i) => i.type === type).map((i) => i.id);
     }
-  }, [onboardingType, selectedBranches, selectedItemIds.length, onChangeItems, forceBranchSelector]);
+    const next: Record<string, MasterDataTypeRestriction> = {};
+    for (const type of MASTER_DATA_TYPE_KEYS) {
+      const ids = byType[type] || [];
+      next[type] =
+        ids.length > 0
+          ? { mode: 'specific', selectedItemIds: ids }
+          : { mode: 'all', selectedItemIds: [] };
+    }
+    onChangeRestrictions(next);
+  }, [onboardingType, selectedBranches, totalSelectedItems, availableItems, onChangeRestrictions]);
 
   const handleBranchChange = (branches: string[] | 'ALL') => {
     onChangeBranches(branches);
-    const branchIds = branches === 'ALL' ? BRANCHES.map((b) => b.id) : branches;
-    const available = MASTER_DATA_ITEMS.filter(
-      (i) => i.onboardedAt === 'company' || (i.branch && branchIds.includes(i.branch))
-    );
-    onChangeItems(available.map((i) => i.id));
+    const nextItems = getAvailableItems(onboardingType, branches);
+    const byType: Record<string, string[]> = {};
+    for (const type of MASTER_DATA_TYPE_KEYS) {
+      byType[type] = nextItems.filter((i) => i.type === type).map((i) => i.id);
+    }
+    const next: Record<string, MasterDataTypeRestriction> = {};
+    for (const type of MASTER_DATA_TYPE_KEYS) {
+      const ids = byType[type] || [];
+      next[type] =
+        ids.length > 0
+          ? { mode: 'specific', selectedItemIds: ids }
+          : { mode: 'all', selectedItemIds: [] };
+    }
+    onChangeRestrictions(next);
   };
 
   const handleBulkConfirm = (ids: string[]) => {
-    const existingIds = new Set(selectedItemIds);
-    const newIds = ids.filter((id) => !existingIds.has(id));
-    onChangeItems([...selectedItemIds, ...newIds]);
+    const itemMap = new Map(availableItems.map((i) => [i.id, i]));
+    const next = { ...typeRestrictions };
+    for (const id of ids) {
+      const item = itemMap.get(id);
+      if (!item || !next[item.type]) continue;
+      const rest = next[item.type];
+      if (rest.mode !== 'specific') {
+        next[item.type] = { mode: 'specific', selectedItemIds: [id] };
+      } else if (!rest.selectedItemIds.includes(id)) {
+        next[item.type] = { mode: 'specific', selectedItemIds: [...rest.selectedItemIds, id] };
+      }
+    }
+    onChangeRestrictions(next);
   };
 
-  const availableCount = useMemo(() => {
-    if (onboardingType === 'company' && !forceBranchSelector) {
-      return MASTER_DATA_ITEMS.filter((i) => i.onboardedAt === 'company').length;
-    }
-    const branchIds = selectedBranches === 'ALL' ? BRANCHES.map((b) => b.id) : selectedBranches;
-    return MASTER_DATA_ITEMS.filter(
-      (i) => i.onboardedAt === 'company' || (i.branch && branchIds.includes(i.branch))
-    ).length;
-  }, [onboardingType, selectedBranches, forceBranchSelector]);
+  const availableCount = availableItems.length;
 
   const isCentral = onboardingType === 'company';
   const groupBy: 'type' | 'branch_then_type' = isCentral ? 'type' : 'branch_then_type';
@@ -109,7 +149,7 @@ export default function MasterDataTab({
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography.Text strong style={{ fontSize: 13 }}>
-            Master Data ({selectedItemIds.length}/{availableCount})
+            Master Data ({totalSelectedItems}/{availableCount})
           </Typography.Text>
           <Button size="small" icon={<UploadOutlined />} onClick={() => setBulkOpen(true)}>
             Bulk Upload
@@ -119,9 +159,10 @@ export default function MasterDataTab({
         <MasterDataPicker
           onboardingType={onboardingType}
           selectedBranches={selectedBranches}
-          selectedItemIds={selectedItemIds}
-          onChange={onChangeItems}
+          typeRestrictions={typeRestrictions}
+          onChange={onChangeRestrictions}
           groupBy={groupBy}
+          availableItems={availableItems}
         />
       </Space>
 

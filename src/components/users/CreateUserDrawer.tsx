@@ -5,7 +5,7 @@ import { useAppContext } from '../../context/AppContext';
 import { BRANCHES } from '../../data/mockData';
 import type { User, CrudPreset, CrudPermission, UserAttributeAssignment } from '../../types';
 
-const PRESET_LABELS: Record<string, string> = {
+const PRESET_LABELS: Record<CrudPreset, string> = {
   full_crud: 'Full CRUD',
   read_only: 'Read Only',
   create_read: 'Create + Read',
@@ -51,7 +51,15 @@ export default function CreateUserDrawer({ open, editingUser, onClose }: Props) 
         userKind: isBranchAdmin ? 'branch_user' : editingKind,
       });
       setUserKind(isBranchAdmin ? 'branch_user' : editingKind);
-      setAttributeAssignments(editingUser.attributeAssignments?.length ? [...editingUser.attributeAssignments] : []);
+      setAttributeAssignments(
+        editingUser.attributeAssignments?.length
+          ? editingUser.attributeAssignments.map((a) => ({
+              attributeId: a.attributeId,
+              crudPreset: a.crudPreset,
+              customPermissions: a.customPermissions,
+            }))
+          : []
+      );
       setAddAttributeId(null);
       if (isBranchAdmin && currentUser.branchId) {
         form.setFieldValue('branchId', currentUser.branchId);
@@ -111,7 +119,7 @@ export default function CreateUserDrawer({ open, editingUser, onClose }: Props) 
   const resetAttrs = () => setAttributeAssignments([]);
 
   const handleAddAttribute = (attributeId: string) => {
-    setAttributeAssignments((prev) => [...prev, { attributeId }]);
+    setAttributeAssignments((prev) => [...prev, { attributeId, crudPreset: 'full_crud' }]);
     setAddAttributeId(null);
   };
 
@@ -119,16 +127,11 @@ export default function CreateUserDrawer({ open, editingUser, onClose }: Props) 
     setAttributeAssignments((prev) => prev.filter((a) => a.attributeId !== attributeId));
   };
 
-  const handleOverrideChange = (attributeId: string, crudOverride: CrudPreset | '' | undefined) => {
-    const value = crudOverride === '' ? undefined : crudOverride;
+  const handleCrudPresetChange = (attributeId: string, crudPreset: CrudPreset) => {
     setAttributeAssignments((prev) =>
       prev.map((a) =>
         a.attributeId === attributeId
-          ? {
-              ...a,
-              crudOverride: value,
-              customOverridePermissions: value === 'custom' ? a.customOverridePermissions ?? [] : undefined,
-            }
+          ? { ...a, crudPreset, customPermissions: crudPreset === 'custom' ? a.customPermissions ?? [] : undefined }
           : a
       )
     );
@@ -137,7 +140,7 @@ export default function CreateUserDrawer({ open, editingUser, onClose }: Props) 
   const handleCustomPermissionsChange = (attributeId: string, perms: CrudPermission[]) => {
     setAttributeAssignments((prev) =>
       prev.map((a) =>
-        a.attributeId === attributeId ? { ...a, customOverridePermissions: perms } : a
+        a.attributeId === attributeId ? { ...a, customPermissions: perms } : a
       )
     );
   };
@@ -154,13 +157,15 @@ export default function CreateUserDrawer({ open, editingUser, onClose }: Props) 
         legoActorType: isCentralScenario ? 'company_user' : values.userKind,
         level: isCompanyUser ? 'company' : 'branch',
         branchId: isCompanyUser ? undefined : values.branchId,
-        attributeAssignments: noAttrsForBranch ? [] : attributeAssignments.map((a) => ({
-          attributeId: a.attributeId,
-          ...(a.crudOverride != null ? { crudOverride: a.crudOverride } : {}),
-          ...(a.crudOverride === 'custom' && a.customOverridePermissions?.length
-            ? { customOverridePermissions: a.customOverridePermissions }
-            : {}),
-        })),
+        attributeAssignments: noAttrsForBranch
+          ? []
+          : attributeAssignments.map((a) => ({
+              attributeId: a.attributeId,
+              crudPreset: a.crudPreset,
+              ...(a.crudPreset === 'custom' && a.customPermissions?.length
+                ? { customPermissions: a.customPermissions }
+                : {}),
+            })),
         defaultBranchAccess: noAttrsForBranch || false,
       };
 
@@ -284,9 +289,8 @@ export default function CreateUserDrawer({ open, editingUser, onClose }: Props) 
           <Space direction="vertical" style={{ width: '100%' }} size="small">
             {attributeAssignments.map((assignment) => {
               const attr = attributes.find((a) => a.id === assignment.attributeId);
-              const defaultPreset = attr?.masterDataMapping?.crudPreset ?? 'full_crud';
-              const overrideValue = assignment.crudOverride ?? '';
-              const customPerms = assignment.crudOverride === 'custom' ? (assignment.customOverridePermissions ?? []) : [];
+              const crudPreset = assignment.crudPreset;
+              const customPerms = crudPreset === 'custom' ? (assignment.customPermissions ?? []) : [];
 
               return (
                 <Card size="small" key={assignment.attributeId} style={{ marginBottom: 8 }}>
@@ -302,24 +306,18 @@ export default function CreateUserDrawer({ open, editingUser, onClose }: Props) 
                       aria-label="Remove attribute"
                     />
                   </div>
-                  <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
-                    Default: {PRESET_LABELS[defaultPreset] ?? defaultPreset}
-                  </Typography.Text>
                   <div style={{ marginBottom: 4 }}>
                     <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
-                      CRUD override
+                      CRUD (required)
                     </Typography.Text>
                     <Select
-                      value={overrideValue === '' ? '__default__' : overrideValue}
-                      onChange={(val) => handleOverrideChange(assignment.attributeId, val === '__default__' ? '' : (val as CrudPreset))}
-                      options={[
-                        { value: '__default__', label: 'Use Default' },
-                        ...Object.entries(PRESET_LABELS).map(([value, label]) => ({ value, label })),
-                      ]}
+                      value={crudPreset}
+                      onChange={(val) => handleCrudPresetChange(assignment.attributeId, val as CrudPreset)}
+                      options={Object.entries(PRESET_LABELS).map(([value, label]) => ({ value, label }))}
                       style={{ width: '100%' }}
                     />
                   </div>
-                  {assignment.crudOverride === 'custom' && (
+                  {crudPreset === 'custom' && (
                     <div style={{ marginTop: 8 }}>
                       {CRUD_OPTIONS.map(({ value, label: l }) => (
                         <Checkbox
@@ -328,7 +326,7 @@ export default function CreateUserDrawer({ open, editingUser, onClose }: Props) 
                           onChange={(e) => {
                             const next = e.target.checked
                               ? [...customPerms, value]
-                              : customPerms.filter((p) => p !== value);
+                              : customPerms.filter((p: CrudPermission) => p !== value);
                             handleCustomPermissionsChange(assignment.attributeId, next);
                           }}
                           style={{ marginRight: 16 }}
@@ -338,9 +336,6 @@ export default function CreateUserDrawer({ open, editingUser, onClose }: Props) 
                       ))}
                     </div>
                   )}
-                  <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>
-                    Override permissions for this user only
-                  </Typography.Text>
                 </Card>
               );
             })}

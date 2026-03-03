@@ -9,8 +9,9 @@ import {
 import { useAppContext } from '../../context/AppContext';
 import { MASTER_DATA_ITEMS } from '../../data/mockData';
 import type { CrudPermission } from '../../types';
+import { PRESET_PERMISSIONS } from '../../types';
 import type { MockJourney } from '../../data/mockData';
-import { buildUserPermissionMap } from './transactionAccess';
+import { doesAttributeCoverItem } from './transactionAccess';
 
 interface Props {
   open: boolean;
@@ -42,12 +43,27 @@ export default function CreateTripDrawer({ open, onClose }: Props) {
 
   const userPermMap = useMemo(() => {
     const map = new Map<string, CrudPermission[]>();
-    const rawMap = buildUserPermissionMap(attributes, currentUser);
-    for (const [itemId, perms] of rawMap.entries()) {
-      map.set(itemId, [...perms]);
+    for (const item of MASTER_DATA_ITEMS) {
+      const perms: CrudPermission[] = [];
+      for (const assignment of currentUser.attributeAssignments) {
+        const attr = attributes.find((a) => a.id === assignment.attributeId);
+        if (!attr || !doesAttributeCoverItem(attr, item.id, itemById)) continue;
+        const p =
+          assignment.crudPreset === 'custom'
+            ? assignment.customPermissions ?? []
+            : PRESET_PERMISSIONS[assignment.crudPreset];
+        for (const perm of p) if (!perms.includes(perm)) perms.push(perm);
+      }
+      if (currentUser.defaultBranchAccess && currentUser.branchId && (item.branch === currentUser.branchId || item.onboardedAt === 'company')) {
+        if (!perms.includes('create')) perms.push('create');
+        if (!perms.includes('read')) perms.push('read');
+        if (!perms.includes('update')) perms.push('update');
+        if (!perms.includes('delete')) perms.push('delete');
+      }
+      if (perms.length > 0) map.set(item.id, perms);
     }
     return map;
-  }, [currentUser, attributes]);
+  }, [currentUser, attributes, itemById]);
 
   const buildOptions = (mdType: string): DropdownOption[] => {
     const allOfType = MASTER_DATA_ITEMS.filter((i) => i.type === mdType);

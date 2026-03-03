@@ -31,18 +31,42 @@ export const PRESET_PERMISSIONS: Record<CrudPreset, CrudPermission[]> = {
 
 export const ALL_CRUD: CrudPermission[] = PRESET_PERMISSIONS.full_crud;
 
+export interface MasterDataTypeRestriction {
+  mode: 'all' | 'specific' | 'none';
+  selectedItemIds: string[]; // only used when mode === 'specific'
+}
+
 export interface MasterDataMapping {
   onboardingType: 'company' | 'branch';
   selectedBranches: string[] | 'ALL';
-  selectedItemIds: string[];
-  crudPreset: CrudPreset;
-  customPermissions: CrudPermission[];
+  typeRestrictions: Record<string, MasterDataTypeRestriction>;
+  // Keys: 'routes', 'route_master', 'location_master', 'material_master', 'vehicle_type_master', 'driver_master', 'transporter_master'
 }
+
+export function getAttributeItemIds(mapping: MasterDataMapping): string[] {
+  const ids: string[] = [];
+  for (const restriction of Object.values(mapping.typeRestrictions)) {
+    if (restriction.mode === 'specific') {
+      ids.push(...restriction.selectedItemIds);
+    }
+  }
+  return ids;
+}
+
+export const MASTER_DATA_TYPE_KEYS = [
+  'routes',
+  'route_master',
+  'location_master',
+  'material_master',
+  'vehicle_type_master',
+  'driver_master',
+  'transporter_master',
+] as const;
 
 export interface UserAttributeAssignment {
   attributeId: string;
-  crudOverride?: CrudPreset;
-  customOverridePermissions?: CrudPermission[];
+  crudPreset: CrudPreset; // REQUIRED — always set during mapping
+  customPermissions?: CrudPermission[]; // only when crudPreset === 'custom'
 }
 
 export interface MasterDataItem {

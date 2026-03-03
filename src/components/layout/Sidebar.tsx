@@ -4,6 +4,7 @@ import {
   TagsOutlined,
   TeamOutlined,
   SwapOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 
@@ -39,6 +40,11 @@ export default function Sidebar() {
           icon: <ExperimentOutlined />,
           label: 'Use Cases',
         },
+        {
+          key: '/scenarios/edge-cases',
+          icon: <WarningOutlined />,
+          label: 'Edge Cases',
+        },
       ],
     },
     {
@@ -64,7 +70,7 @@ export default function Sidebar() {
       </div>
       <Menu
         mode="inline"
-        selectedKeys={[location.pathname.startsWith('/scenarios') ? '/scenarios' : location.pathname]}
+        selectedKeys={[location.pathname]}
         items={items}
         onClick={({ key }) => navigate(key)}
         style={{ border: 'none' }}

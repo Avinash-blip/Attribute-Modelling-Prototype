@@ -5,22 +5,41 @@ import type {
   MasterDataItem,
   Branch,
   CrudPreset,
-  CrudPermission,
   UserAttributeAssignment,
+  MasterDataTypeRestriction,
 } from '../types';
+import { MASTER_DATA_TYPE_KEYS } from '../types';
 import type { MockJourney } from './mockData';
 
 const emptyFieldMapping = { selectedFields: [] };
 const created = '2026-02-01T10:00:00Z';
+
+function buildTypeRestrictionsFromIds(
+  selectedItemIds: string[],
+  masterDataItems: MasterDataItem[]
+): Record<string, MasterDataTypeRestriction> {
+  const byType = new Map<string, string[]>();
+  for (const key of MASTER_DATA_TYPE_KEYS) byType.set(key, []);
+  const itemMap = new Map(masterDataItems.map((i) => [i.id, i]));
+  for (const id of selectedItemIds) {
+    const item = itemMap.get(id);
+    if (item && byType.has(item.type)) byType.get(item.type)!.push(id);
+  }
+  const out: Record<string, MasterDataTypeRestriction> = {};
+  for (const key of MASTER_DATA_TYPE_KEYS) {
+    const ids = byType.get(key) ?? [];
+    out[key] = ids.length > 0 ? { mode: 'specific', selectedItemIds: ids } : { mode: 'all', selectedItemIds: [] };
+  }
+  return out;
+}
 
 function attr(
   id: string,
   label: string,
   scope: 'company' | 'branch',
   selectedItemIds: string[],
-  selectedBranches: string[] | 'ALL' = 'ALL',
-  crudPreset: CrudPreset = 'full_crud',
-  customPermissions: CrudPermission[] = []
+  selectedBranches: string[] | 'ALL',
+  masterDataItems: MasterDataItem[]
 ): Attribute {
   return {
     id,
@@ -33,9 +52,7 @@ function attr(
     masterDataMapping: {
       onboardingType: scope === 'company' ? 'company' : 'branch',
       selectedBranches,
-      selectedItemIds,
-      crudPreset,
-      customPermissions,
+      typeRestrictions: buildTypeRestrictionsFromIds(selectedItemIds, masterDataItems),
     },
     fieldMapping: emptyFieldMapping,
     assignedUsers: [],
@@ -43,7 +60,7 @@ function attr(
 }
 
 function toAssignments(ids: string[]): UserAttributeAssignment[] {
-  return ids.map((attributeId) => ({ attributeId }));
+  return ids.map((attributeId) => ({ attributeId, crudPreset: 'full_crud' as CrudPreset }));
 }
 
 // --- Scenario 1: One Person, Two Branches, Different Permissions ---
@@ -75,14 +92,14 @@ const sc1SouthIds = ['sc1-md-r1', 'sc1-md-r2', 'sc1-md-v1', 'sc1-md-v2', 'sc1-md
 const sc1WestIds = ['sc1-md-r3', 'sc1-md-r4', 'sc1-md-v3', 'sc1-md-v4', 'sc1-md-m3', 'sc1-md-m4', 'sc1-md-t3', 'sc1-md-t4'];
 
 const sc1Attributes: Attribute[] = [
-  attr('sc1-attr-south', 'South Ops (Full CRUD)', 'branch', sc1SouthIds, ['sc1-br-south'], 'full_crud', []),
-  attr('sc1-attr-west', 'West Monitor (Read-Only)', 'branch', sc1WestIds, ['sc1-br-west'], 'read_only', []),
+  attr('sc1-attr-south', 'South Ops (Full CRUD)', 'branch', sc1SouthIds, ['sc1-br-south'], sc1MasterData),
+  attr('sc1-attr-west', 'West Monitor (Read-Only)', 'branch', sc1WestIds, ['sc1-br-west'], sc1MasterData),
 ];
 
 const sc1Users: User[] = [
-  { id: 'sc1-user-ramesh', name: 'Ramesh', email: 'ramesh@company.com', role: 'Regional Ops Controller', legoActorType: 'company_user', level: 'company', attributeAssignments: toAssignments(['sc1-attr-south', 'sc1-attr-west']) },
+  { id: 'sc1-user-ramesh', name: 'Ramesh', email: 'ramesh@company.com', role: 'Regional Ops Controller', legoActorType: 'company_user', level: 'company', attributeAssignments: [{ attributeId: 'sc1-attr-south', crudPreset: 'full_crud' }, { attributeId: 'sc1-attr-west', crudPreset: 'read_only' }] },
   { id: 'sc1-user-south', name: 'South Ops User', email: 'south@company.com', role: 'Ops', legoActorType: 'branch_user', level: 'branch', branchId: 'sc1-br-south', attributeAssignments: toAssignments(['sc1-attr-south']) },
-  { id: 'sc1-user-west', name: 'West Ops User', email: 'west@company.com', role: 'Ops', legoActorType: 'branch_user', level: 'branch', branchId: 'sc1-br-west', attributeAssignments: toAssignments(['sc1-attr-west']) },
+  { id: 'sc1-user-west', name: 'West Ops User', email: 'west@company.com', role: 'Ops', legoActorType: 'branch_user', level: 'branch', branchId: 'sc1-br-west', attributeAssignments: [{ attributeId: 'sc1-attr-west', crudPreset: 'read_only' }] },
 ];
 
 const sc1Journeys: MockJourney[] = [
@@ -140,8 +157,8 @@ const sc2FmcgIds = [...sc2SharedIds, 'sc2-md-m1', 'sc2-md-m2'];
 const sc2CementIds = [...sc2SharedIds, 'sc2-md-m3', 'sc2-md-m4'];
 
 const sc2Attributes: Attribute[] = [
-  attr('sc2-attr-fmcg', 'FMCG Team', 'branch', sc2FmcgIds, ['sc2-br-mum'], 'full_crud', []),
-  attr('sc2-attr-cement', 'Cement Team', 'branch', sc2CementIds, ['sc2-br-mum'], 'full_crud', []),
+  attr('sc2-attr-fmcg', 'FMCG Team', 'branch', sc2FmcgIds, ['sc2-br-mum'], sc2MasterData),
+  attr('sc2-attr-cement', 'Cement Team', 'branch', sc2CementIds, ['sc2-br-mum'], sc2MasterData),
 ];
 
 const sc2Users: User[] = [
@@ -217,15 +234,15 @@ const sc25MasterData: MasterDataItem[] = [
 ];
 
 const sc25Attributes: Attribute[] = [
-  { ...attr('sc25-attr-nsk-transfer', 'Nashik Stock Transfer Access', 'company', sc25NskTransferIds, ['sc25-br-aurangabad'], 'full_crud', []), description: 'Selective access to Aurangabad warehouse data for stock transfer indents to Nashik' },
-  { ...attr('sc25-attr-aur-ops', 'Aurangabad Warehouse Ops', 'branch', sc25AurAllIds, ['sc25-br-aurangabad'], 'custom', ['read', 'update']), description: 'Full access to all Aurangabad warehouse master data' },
-  { ...attr('sc25-attr-nsk-ops', 'Nashik Distillery Ops', 'branch', sc25NskAllIds, ['sc25-br-nashik'], 'full_crud', []), description: 'Full access to all Nashik distillery master data' },
+  { ...attr('sc25-attr-nsk-transfer', 'Nashik Stock Transfer Access', 'company', sc25NskTransferIds, ['sc25-br-aurangabad'], sc25MasterData), description: 'Selective access to Aurangabad warehouse data for stock transfer indents to Nashik' },
+  { ...attr('sc25-attr-aur-ops', 'Aurangabad Warehouse Ops', 'branch', sc25AurAllIds, ['sc25-br-aurangabad'], sc25MasterData), description: 'Full access to all Aurangabad warehouse master data' },
+  { ...attr('sc25-attr-nsk-ops', 'Nashik Distillery Ops', 'branch', sc25NskAllIds, ['sc25-br-nashik'], sc25MasterData), description: 'Full access to all Nashik distillery master data' },
 ];
 
 const sc25Users: User[] = [
   { id: 'sc25-user-nsk-ops', name: 'Amit (Nashik Distillery Ops)', email: 'amit@diageo.com', role: 'Distillery Operations', legoActorType: 'branch_user', level: 'branch', branchId: 'sc25-br-nashik', attributeAssignments: toAssignments(['sc25-attr-nsk-transfer', 'sc25-attr-nsk-ops']) },
-  { id: 'sc25-user-aur-ops', name: 'Sneha (Aurangabad Warehouse Ops)', email: 'sneha@diageo.com', role: 'Warehouse Operations', legoActorType: 'branch_user', level: 'branch', branchId: 'sc25-br-aurangabad', attributeAssignments: toAssignments(['sc25-attr-aur-ops']) },
-  { id: 'sc25-user-aur-mgr', name: 'Deepak (Aurangabad Warehouse Manager)', email: 'deepak@diageo.com', role: 'Warehouse Manager', legoActorType: 'branch_user', level: 'branch', branchId: 'sc25-br-aurangabad', attributeAssignments: toAssignments(['sc25-attr-aur-ops']) },
+  { id: 'sc25-user-aur-ops', name: 'Sneha (Aurangabad Warehouse Ops)', email: 'sneha@diageo.com', role: 'Warehouse Operations', legoActorType: 'branch_user', level: 'branch', branchId: 'sc25-br-aurangabad', attributeAssignments: [{ attributeId: 'sc25-attr-aur-ops', crudPreset: 'custom', customPermissions: ['read', 'update'] }] },
+  { id: 'sc25-user-aur-mgr', name: 'Deepak (Aurangabad Warehouse Manager)', email: 'deepak@diageo.com', role: 'Warehouse Manager', legoActorType: 'branch_user', level: 'branch', branchId: 'sc25-br-aurangabad', attributeAssignments: [{ attributeId: 'sc25-attr-aur-ops', crudPreset: 'custom', customPermissions: ['read', 'update'] }] },
 ];
 
 const sc25Journeys: MockJourney[] = [
@@ -297,15 +314,15 @@ const sc3MasterData: MasterDataItem[] = [
 ];
 
 const sc3Attributes: Attribute[] = [
-  attr('sc3-attr-all', 'SPD_ALL (View-Only)', 'branch', sc3AllIds, ['sc3-br-spd'], 'read_only', []),
-  attr('sc3-attr-north', 'SPD_NORTH', 'branch', sc3NorthIds, ['sc3-br-spd'], 'full_crud', []),
-  attr('sc3-attr-south', 'SPD_SOUTH', 'branch', sc3SouthIds, ['sc3-br-spd'], 'full_crud', []),
-  attr('sc3-attr-east', 'SPD_EAST', 'branch', sc3EastIds, ['sc3-br-spd'], 'full_crud', []),
-  attr('sc3-attr-west', 'SPD_WEST', 'branch', sc3WestIds, ['sc3-br-spd'], 'full_crud', []),
+  attr('sc3-attr-all', 'SPD_ALL (View-Only)', 'branch', sc3AllIds, ['sc3-br-spd'], sc3MasterData),
+  attr('sc3-attr-north', 'SPD_NORTH', 'branch', sc3NorthIds, ['sc3-br-spd'], sc3MasterData),
+  attr('sc3-attr-south', 'SPD_SOUTH', 'branch', sc3SouthIds, ['sc3-br-spd'], sc3MasterData),
+  attr('sc3-attr-east', 'SPD_EAST', 'branch', sc3EastIds, ['sc3-br-spd'], sc3MasterData),
+  attr('sc3-attr-west', 'SPD_WEST', 'branch', sc3WestIds, ['sc3-br-spd'], sc3MasterData),
 ];
 
 const sc3Users: User[] = [
-  { id: 'sc3-user-sharma', name: 'Mr. Sharma', email: 'sharma@company.com', role: 'Business Head', legoActorType: 'company_user', level: 'company', attributeAssignments: toAssignments(['sc3-attr-all']) },
+  { id: 'sc3-user-sharma', name: 'Mr. Sharma', email: 'sharma@company.com', role: 'Business Head', legoActorType: 'company_user', level: 'company', attributeAssignments: [{ attributeId: 'sc3-attr-all', crudPreset: 'read_only' }] },
   { id: 'sc3-user-priya', name: 'Ms. Priya', email: 'priya@company.com', role: 'Regional Head North', legoActorType: 'branch_user', level: 'branch', branchId: 'sc3-br-spd', attributeAssignments: toAssignments(['sc3-attr-north']) },
   { id: 'sc3-user-south', name: 'South Regional Head', email: 'south@company.com', role: 'Regional Head South', legoActorType: 'branch_user', level: 'branch', branchId: 'sc3-br-spd', attributeAssignments: toAssignments(['sc3-attr-south']) },
   { id: 'sc3-user-east', name: 'East Regional Head', email: 'east@company.com', role: 'Regional Head East', legoActorType: 'branch_user', level: 'branch', branchId: 'sc3-br-spd', attributeAssignments: toAssignments(['sc3-attr-east']) },
@@ -378,10 +395,10 @@ const sc4MasterData: MasterDataItem[] = [
 ];
 
 const sc4Attributes: Attribute[] = [
-  attr('sc4-attr-north', 'North Region (Cross-Branch)', 'company', sc4NorthIds, ['sc4-br-spd', 'sc4-br-tmcv', 'sc4-br-def'], 'full_crud', []),
-  attr('sc4-attr-spd', 'SPD Branch Only', 'branch', ['sc4-md-rn1', 'sc4-md-rs1', 'sc4-md-vn1', 'sc4-md-vs1', 'sc4-md-mn1', 'sc4-md-ms1', 'sc4-md-tn1', 'sc4-md-ts1'], ['sc4-br-spd'], 'full_crud', []),
-  attr('sc4-attr-tmcv', 'TMCV Branch Only', 'branch', ['sc4-md-rn2', 'sc4-md-rw1', 'sc4-md-vn2', 'sc4-md-vw1', 'sc4-md-mn2', 'sc4-md-mw1', 'sc4-md-tn2', 'sc4-md-tw1'], ['sc4-br-tmcv'], 'full_crud', []),
-  attr('sc4-attr-def', 'DEF Branch Only', 'branch', ['sc4-md-rn3', 'sc4-md-vn3', 'sc4-md-mn3', 'sc4-md-tn3'], ['sc4-br-def'], 'full_crud', []),
+  attr('sc4-attr-north', 'North Region (Cross-Branch)', 'company', sc4NorthIds, ['sc4-br-spd', 'sc4-br-tmcv', 'sc4-br-def'], sc4MasterData),
+  attr('sc4-attr-spd', 'SPD Branch Only', 'branch', ['sc4-md-rn1', 'sc4-md-rs1', 'sc4-md-vn1', 'sc4-md-vs1', 'sc4-md-mn1', 'sc4-md-ms1', 'sc4-md-tn1', 'sc4-md-ts1'], ['sc4-br-spd'], sc4MasterData),
+  attr('sc4-attr-tmcv', 'TMCV Branch Only', 'branch', ['sc4-md-rn2', 'sc4-md-rw1', 'sc4-md-vn2', 'sc4-md-vw1', 'sc4-md-mn2', 'sc4-md-mw1', 'sc4-md-tn2', 'sc4-md-tw1'], ['sc4-br-tmcv'], sc4MasterData),
+  attr('sc4-attr-def', 'DEF Branch Only', 'branch', ['sc4-md-rn3', 'sc4-md-vn3', 'sc4-md-mn3', 'sc4-md-tn3'], ['sc4-br-def'], sc4MasterData),
 ];
 
 const sc4Users: User[] = [
@@ -466,10 +483,10 @@ const sc5ChennaiItemIds = ['sc5-rt-chn-1', 'sc5-rt-chn-2', 'sc5-vt-chn-1', 'sc5-
 const sc5HydItemIds = ['sc5-rt-hyd-1', 'sc5-rt-hyd-2', 'sc5-vt-hyd-1', 'sc5-mt-hyd-1', 'sc5-tp-hyd-1'];
 
 const sc5Attributes: Attribute[] = [
-  { ...attr('sc5-attr-vedanta', 'Vedanta Supplier Access', 'company', sc5SupplierItemIds, ['sc5-br-pune', 'sc5-br-chennai', 'sc5-br-hyd'], 'full_crud', []), description: 'Selective master data across Pune, Chennai, Hyderabad for Vedanta Aluminium' },
-  attr('sc5-attr-pune', 'Pune Plant Ops', 'branch', sc5PuneItemIds, ['sc5-br-pune'], 'full_crud', []),
-  attr('sc5-attr-chennai', 'Chennai Plant Ops', 'branch', sc5ChennaiItemIds, ['sc5-br-chennai'], 'full_crud', []),
-  attr('sc5-attr-hyd', 'Hyderabad Plant Ops', 'branch', sc5HydItemIds, ['sc5-br-hyd'], 'full_crud', []),
+  { ...attr('sc5-attr-vedanta', 'Vedanta Supplier Access', 'company', sc5SupplierItemIds, ['sc5-br-pune', 'sc5-br-chennai', 'sc5-br-hyd'], sc5MasterData), description: 'Selective master data across Pune, Chennai, Hyderabad for Vedanta Aluminium' },
+  attr('sc5-attr-pune', 'Pune Plant Ops', 'branch', sc5PuneItemIds, ['sc5-br-pune'], sc5MasterData),
+  attr('sc5-attr-chennai', 'Chennai Plant Ops', 'branch', sc5ChennaiItemIds, ['sc5-br-chennai'], sc5MasterData),
+  attr('sc5-attr-hyd', 'Hyderabad Plant Ops', 'branch', sc5HydItemIds, ['sc5-br-hyd'], sc5MasterData),
 ];
 
 const sc5Users: User[] = [
@@ -545,13 +562,13 @@ const sc6MasterData: MasterDataItem[] = [
 ];
 
 const sc6Attributes: Attribute[] = [
-  attr('sc6-attr-ops', 'Chennai Ops', 'branch', sc6ChennaiIds, ['sc6-br-chn'], 'full_crud', []),
-  attr('sc6-attr-finance', 'Finance All', 'company', sc6AllIds, 'ALL', 'read_only', []),
+  attr('sc6-attr-ops', 'Chennai Ops', 'branch', sc6ChennaiIds, ['sc6-br-chn'], sc6MasterData),
+  attr('sc6-attr-finance', 'Finance All', 'company', sc6AllIds, 'ALL', sc6MasterData),
 ];
 
 const sc6Users: User[] = [
   { id: 'sc6-user-karthik', name: 'Karthik', email: 'karthik@company.com', role: 'Ops Chennai', legoActorType: 'branch_user', level: 'branch', branchId: 'sc6-br-chn', attributeAssignments: toAssignments(['sc6-attr-ops']) },
-  { id: 'sc6-user-anita', name: 'Anita', email: 'anita@company.com', role: 'Finance Team', legoActorType: 'company_user', level: 'company', attributeAssignments: toAssignments(['sc6-attr-finance']) },
+  { id: 'sc6-user-anita', name: 'Anita', email: 'anita@company.com', role: 'Finance Team', legoActorType: 'company_user', level: 'company', attributeAssignments: [{ attributeId: 'sc6-attr-finance', crudPreset: 'read_only' }] },
 ];
 
 const sc6Journeys: MockJourney[] = [
@@ -624,7 +641,7 @@ const sc8MasterData: MasterDataItem[] = [
 ];
 
 const sc8Attributes: Attribute[] = [
-  attr('sc8-attr-fmcg', 'Pune FMCG', 'branch', sc8FmcgIds, ['sc8-br-pune'], 'full_crud', []),
+  attr('sc8-attr-fmcg', 'Pune FMCG', 'branch', sc8FmcgIds, ['sc8-br-pune'], sc8MasterData),
 ];
 
 const sc8Users: User[] = [
@@ -682,8 +699,8 @@ const sc11MasterData: MasterDataItem[] = [
 ];
 
 const sc11Attributes: Attribute[] = [
-  attr('sc11-attr-abc', 'ABC Supplier Portal', 'branch', sc11AbcIds, ['sc11-br-mum'], 'full_crud', []),
-  attr('sc11-attr-internal', 'Internal Ops', 'branch', sc11AllIds, ['sc11-br-mum'], 'full_crud', []),
+  attr('sc11-attr-abc', 'ABC Supplier Portal', 'branch', sc11AbcIds, ['sc11-br-mum'], sc11MasterData),
+  attr('sc11-attr-internal', 'Internal Ops', 'branch', sc11AllIds, ['sc11-br-mum'], sc11MasterData),
 ];
 
 const sc11Users: User[] = [
@@ -744,12 +761,12 @@ const sc16MasterData: MasterDataItem[] = [
 ];
 
 const sc16Attributes: Attribute[] = [
-  attr('sc16-attr-north', 'SPD_NORTH', 'branch', sc16NorthIds, ['sc16-br-spd'], 'full_crud', []),
-  attr('sc16-attr-south', 'SPD_SOUTH', 'branch', sc16SouthIds, ['sc16-br-spd'], 'read_only', []),
+  attr('sc16-attr-north', 'SPD_NORTH', 'branch', sc16NorthIds, ['sc16-br-spd'], sc16MasterData),
+  attr('sc16-attr-south', 'SPD_SOUTH', 'branch', sc16SouthIds, ['sc16-br-spd'], sc16MasterData),
 ];
 
 const sc16Users: User[] = [
-  { id: 'sc16-user-anil', name: 'Mr. Anil', email: 'anil@company.com', role: 'Regional Ops', legoActorType: 'company_user', level: 'company', attributeAssignments: toAssignments(['sc16-attr-north', 'sc16-attr-south']) },
+  { id: 'sc16-user-anil', name: 'Mr. Anil', email: 'anil@company.com', role: 'Regional Ops', legoActorType: 'company_user', level: 'company', attributeAssignments: [{ attributeId: 'sc16-attr-north', crudPreset: 'full_crud' }, { attributeId: 'sc16-attr-south', crudPreset: 'read_only' }] },
 ];
 
 const sc16Journeys: MockJourney[] = [
@@ -813,12 +830,12 @@ const sc18MasterData: MasterDataItem[] = [
 ];
 
 const sc18Attributes: Attribute[] = [
-  attr('sc18-attr-north', 'SPD_NORTH', 'branch', sc18NorthIds, ['sc18-br-spd'], 'full_crud', []),
-  attr('sc18-attr-all', 'SPD_ALL', 'branch', sc18AllIds, ['sc18-br-spd'], 'read_only', []),
+  attr('sc18-attr-north', 'SPD_NORTH', 'branch', sc18NorthIds, ['sc18-br-spd'], sc18MasterData),
+  attr('sc18-attr-all', 'SPD_ALL', 'branch', sc18AllIds, ['sc18-br-spd'], sc18MasterData),
 ];
 
 const sc18Users: User[] = [
-  { id: 'sc18-user-lakshmi', name: 'Ms. Lakshmi', email: 'lakshmi@company.com', role: 'North Head + Business View', legoActorType: 'company_user', level: 'company', attributeAssignments: toAssignments(['sc18-attr-north', 'sc18-attr-all']) },
+  { id: 'sc18-user-lakshmi', name: 'Ms. Lakshmi', email: 'lakshmi@company.com', role: 'North Head + Business View', legoActorType: 'company_user', level: 'company', attributeAssignments: [{ attributeId: 'sc18-attr-north', crudPreset: 'full_crud' }, { attributeId: 'sc18-attr-all', crudPreset: 'read_only' }] },
 ];
 
 const sc18Journeys: MockJourney[] = [

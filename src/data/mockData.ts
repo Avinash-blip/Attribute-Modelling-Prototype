@@ -1,4 +1,5 @@
-import type { Branch, MasterDataItem, FieldItem, Attribute, User } from '../types';
+import type { Branch, MasterDataItem, FieldItem, Attribute, User, MasterDataTypeRestriction } from '../types';
+import { MASTER_DATA_TYPE_KEYS } from '../types';
 
 export const BRANCHES: Branch[] = [
   { id: 'br-1', name: 'Mumbai HQ', code: 'MUM' },
@@ -142,6 +143,21 @@ export const FIELD_ITEMS: FieldItem[] = [
 
 export const MODULES = [...new Set(FIELD_ITEMS.map((f) => f.module))];
 
+function buildTypeRestrictions(selectedItemIds: string[]): Record<string, MasterDataTypeRestriction> {
+  const byType = new Map<string, string[]>();
+  for (const key of MASTER_DATA_TYPE_KEYS) byType.set(key, []);
+  for (const id of selectedItemIds) {
+    const item = MASTER_DATA_ITEMS.find((i) => i.id === id);
+    if (item && byType.has(item.type)) byType.get(item.type)!.push(id);
+  }
+  const out: Record<string, MasterDataTypeRestriction> = {};
+  for (const key of MASTER_DATA_TYPE_KEYS) {
+    const ids = byType.get(key) ?? [];
+    out[key] = ids.length > 0 ? { mode: 'specific', selectedItemIds: ids } : { mode: 'all', selectedItemIds: [] };
+  }
+  return out;
+}
+
 export const DEFAULT_ATTRIBUTES: Attribute[] = [
   {
     id: 'attr-1',
@@ -155,9 +171,7 @@ export const DEFAULT_ATTRIBUTES: Attribute[] = [
     masterDataMapping: {
       onboardingType: 'branch',
       selectedBranches: ['br-1', 'br-2', 'br-7'],
-      selectedItemIds: ['md-1', 'md-4', 'md-10', 'md-12', 'md-20', 'md-21', 'md-26', 'md-28', 'md-32', 'md-33', 'md-40', 'md-50', 'md-51', 'md-60', 'md-65', 'md-5', 'md-36', 'md-43', 'md-55', 'md-61'],
-      crudPreset: 'full_crud',
-      customPermissions: [],
+      typeRestrictions: buildTypeRestrictions(['md-1', 'md-4', 'md-10', 'md-12', 'md-20', 'md-21', 'md-26', 'md-28', 'md-32', 'md-33', 'md-40', 'md-50', 'md-51', 'md-60', 'md-65', 'md-5', 'md-36', 'md-43', 'md-55', 'md-61']),
     },
     fieldMapping: { selectedFields: ['f-1', 'f-2', 'f-3', 'f-4', 'f-5', 'f-6', 'f-7', 'f-10', 'f-11', 'f-12', 'f-13', 'f-14', 'f-20', 'f-21', 'f-22', 'f-30', 'f-31', 'f-32'] },
     assignedUsers: ['usr-1', 'usr-2'],
@@ -174,9 +188,7 @@ export const DEFAULT_ATTRIBUTES: Attribute[] = [
     masterDataMapping: {
       onboardingType: 'branch',
       selectedBranches: ['br-2', 'br-5'],
-      selectedItemIds: ['md-2', 'md-5', 'md-11', 'md-13', 'md-21', 'md-24', 'md-30', 'md-31', 'md-40', 'md-41', 'md-44', 'md-51', 'md-54', 'md-56', 'md-61', 'md-63'],
-      crudPreset: 'full_crud',
-      customPermissions: [],
+      typeRestrictions: buildTypeRestrictions(['md-2', 'md-5', 'md-11', 'md-13', 'md-21', 'md-24', 'md-30', 'md-31', 'md-40', 'md-41', 'md-44', 'md-51', 'md-54', 'md-56', 'md-61', 'md-63']),
     },
     fieldMapping: { selectedFields: ['f-1', 'f-2', 'f-3', 'f-4', 'f-10', 'f-11', 'f-12', 'f-14', 'f-40', 'f-41', 'f-42'] },
     assignedUsers: ['usr-3'],
@@ -193,9 +205,7 @@ export const DEFAULT_ATTRIBUTES: Attribute[] = [
     masterDataMapping: {
       onboardingType: 'branch',
       selectedBranches: ['br-3', 'br-4'],
-      selectedItemIds: ['md-3', 'md-14', 'md-22', 'md-23', 'md-34', 'md-40', 'md-41', 'md-52', 'md-53', 'md-62'],
-      crudPreset: 'full_crud',
-      customPermissions: [],
+      typeRestrictions: buildTypeRestrictions(['md-3', 'md-14', 'md-22', 'md-23', 'md-34', 'md-40', 'md-41', 'md-52', 'md-53', 'md-62']),
     },
     fieldMapping: { selectedFields: ['f-1', 'f-2', 'f-3', 'f-4', 'f-5', 'f-10', 'f-11', 'f-12', 'f-13', 'f-14', 'f-15', 'f-16', 'f-40', 'f-41', 'f-42', 'f-43'] },
     assignedUsers: ['usr-4', 'usr-5'],
@@ -212,9 +222,7 @@ export const DEFAULT_ATTRIBUTES: Attribute[] = [
     masterDataMapping: {
       onboardingType: 'company',
       selectedBranches: 'ALL',
-      selectedItemIds: MASTER_DATA_ITEMS.filter((i) => i.onboardedAt === 'company').map((i) => i.id),
-      crudPreset: 'full_crud',
-      customPermissions: [],
+      typeRestrictions: buildTypeRestrictions(MASTER_DATA_ITEMS.filter((i) => i.onboardedAt === 'company').map((i) => i.id)),
     },
     fieldMapping: { selectedFields: FIELD_ITEMS.map((f) => f.id) },
     assignedUsers: ['usr-6'],
@@ -222,12 +230,12 @@ export const DEFAULT_ATTRIBUTES: Attribute[] = [
 ];
 
 export const DEFAULT_USERS: User[] = [
-  { id: 'usr-1', name: 'Rajesh Nair', email: 'rajesh.nair@company.com', role: 'Branch Admin', legoActorType: 'branch_admin', level: 'branch', branchId: 'br-1', attributeAssignments: [{ attributeId: 'attr-1' }] },
-  { id: 'usr-2', name: 'Priya Sharma', email: 'priya.sharma@company.com', role: 'Branch User', legoActorType: 'branch_user', level: 'branch', branchId: 'br-2', attributeAssignments: [{ attributeId: 'attr-1' }] },
-  { id: 'usr-3', name: 'Deepak Gupta', email: 'deepak.gupta@company.com', role: 'Company User', legoActorType: 'company_user', level: 'company', attributeAssignments: [{ attributeId: 'attr-2' }] },
-  { id: 'usr-4', name: 'Kavitha Rajan', email: 'kavitha.rajan@company.com', role: 'Branch Admin', legoActorType: 'branch_admin', level: 'branch', branchId: 'br-3', attributeAssignments: [{ attributeId: 'attr-3' }] },
-  { id: 'usr-5', name: 'Sunil Reddy', email: 'sunil.reddy@company.com', role: 'Branch User', legoActorType: 'branch_user', level: 'branch', branchId: 'br-4', attributeAssignments: [{ attributeId: 'attr-3' }] },
-  { id: 'usr-6', name: 'Anita Desai', email: 'anita.desai@company.com', role: 'Company Admin', legoActorType: 'company_admin', level: 'company', attributeAssignments: [{ attributeId: 'attr-4' }] },
+  { id: 'usr-1', name: 'Rajesh Nair', email: 'rajesh.nair@company.com', role: 'Branch Admin', legoActorType: 'branch_admin', level: 'branch', branchId: 'br-1', attributeAssignments: [{ attributeId: 'attr-1', crudPreset: 'full_crud' }] },
+  { id: 'usr-2', name: 'Priya Sharma', email: 'priya.sharma@company.com', role: 'Branch User', legoActorType: 'branch_user', level: 'branch', branchId: 'br-2', attributeAssignments: [{ attributeId: 'attr-1', crudPreset: 'full_crud' }] },
+  { id: 'usr-3', name: 'Deepak Gupta', email: 'deepak.gupta@company.com', role: 'Company User', legoActorType: 'company_user', level: 'company', attributeAssignments: [{ attributeId: 'attr-2', crudPreset: 'full_crud' }] },
+  { id: 'usr-4', name: 'Kavitha Rajan', email: 'kavitha.rajan@company.com', role: 'Branch Admin', legoActorType: 'branch_admin', level: 'branch', branchId: 'br-3', attributeAssignments: [{ attributeId: 'attr-3', crudPreset: 'full_crud' }] },
+  { id: 'usr-5', name: 'Sunil Reddy', email: 'sunil.reddy@company.com', role: 'Branch User', legoActorType: 'branch_user', level: 'branch', branchId: 'br-4', attributeAssignments: [{ attributeId: 'attr-3', crudPreset: 'full_crud' }] },
+  { id: 'usr-6', name: 'Anita Desai', email: 'anita.desai@company.com', role: 'Company Admin', legoActorType: 'company_admin', level: 'company', attributeAssignments: [{ attributeId: 'attr-4', crudPreset: 'full_crud' }] },
   { id: 'usr-7', name: 'Vikram Mehta', email: 'vikram.mehta@company.com', role: 'Company Admin', legoActorType: 'company_admin', level: 'company', attributeAssignments: [] },
 ];
 

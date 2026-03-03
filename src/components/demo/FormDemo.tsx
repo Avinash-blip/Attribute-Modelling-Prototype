@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Card, Select, Switch, Space, Typography, Form, Alert, Divider, Tag, Button, message } from 'antd';
 import { useAppContext } from '../../context/AppContext';
 import { MASTER_DATA_ITEMS } from '../../data/mockData';
+import { getAttributeItemIds } from '../../types';
 
 export default function FormDemo() {
   const { currentUser, attributes } = useAppContext();
@@ -16,7 +17,7 @@ export default function FormDemo() {
   const getOptions = (type: string) => {
     const all = MASTER_DATA_ITEMS.filter((i) => i.type === type);
     if (showAll || !userAttribute) return all;
-    const mappedIds = new Set(userAttribute.masterDataMapping.selectedItemIds);
+    const mappedIds = new Set(getAttributeItemIds(userAttribute.masterDataMapping));
     return all.filter((i) => mappedIds.has(i.id));
   };
 

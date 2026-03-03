@@ -6,7 +6,7 @@ import type { MockJourney } from '../data/mockData';
 export type POCOnboardingScenario = 'central_onboarding' | 'branch_specific_onboarding';
 
 const STORAGE_KEYS = {
-  scenarioData: 'abac_poc_scenario_data_v2',
+  scenarioData: 'abac_poc_scenario_data_v3',
   scenario: 'abac_poc_scenario',
 } as const;
 

@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import CreateAttributeDrawer from './CreateAttributeDrawer';
 import { useAppContext } from '../../context/AppContext';
 import type { Attribute } from '../../types';
+import { getAttributeItemIds } from '../../types';
 
 export default function AttributeListPage() {
   const { attributes, users, deleteAttribute, pocOnboardingScenario } = useAppContext();
@@ -78,7 +79,7 @@ export default function AttributeListPage() {
       key: 'masterData',
       width: 110,
       render: (_: unknown, r: Attribute) => (
-        <Tag>{r.masterDataMapping.selectedItemIds.length} items</Tag>
+        <Tag>{getAttributeItemIds(r.masterDataMapping).length} items</Tag>
       ),
     },
     {

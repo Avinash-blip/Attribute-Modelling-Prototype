@@ -9,9 +9,9 @@ import {
   MoreOutlined,
 } from '@ant-design/icons';
 import { useAppContext } from '../../context/AppContext';
-import { BRANCHES, MASTER_DATA_ITEMS } from '../../data/mockData';
+import { BRANCHES } from '../../data/mockData';
 import CreateTripDrawer from './CreateTripDrawer';
-import { buildUserPermissionMap, resolveJourneyAccess } from './transactionAccess';
+import { resolveJourneyAccess } from './transactionAccess';
 
 const SLA_COLOR: Record<string, string> = {
   'On Time': 'green',
@@ -28,28 +28,18 @@ export default function JourneyListPage() {
 
   const isCentralScenario = pocOnboardingScenario === 'central_onboarding';
 
-  const itemNameMap = useMemo(
-    () => new Map(MASTER_DATA_ITEMS.map((item) => [item.id, item.name])),
-    []
-  );
-
   const assignedAttributes = useMemo(
     () => attributes.filter((a) => currentUser.attributeAssignments.some((x) => x.attributeId === a.id)),
     [attributes, currentUser.attributeAssignments]
-  );
-
-  const permissionMap = useMemo(
-    () => buildUserPermissionMap(attributes, currentUser),
-    [attributes, currentUser]
   );
 
   const journeysWithAccess = useMemo(
     () =>
       journeys.map((journey) => ({
         ...journey,
-        access: resolveJourneyAccess(journey, permissionMap),
+        access: resolveJourneyAccess(journey, attributes, currentUser),
       })),
-    [journeys, permissionMap]
+    [journeys, attributes, currentUser]
   );
 
   const readableJourneys = useMemo(
@@ -189,9 +179,9 @@ export default function JourneyListPage() {
       key: 'actions',
       width: 140,
       render: (_: unknown, r: JourneyRow) => {
-        const missing = r.access.missingUpdateItems.map((id) => itemNameMap.get(id) || id);
+        const missing = r.access.missingItems.map((m) => m.itemName);
         const reason = missing.length > 0
-          ? `Update blocked: missing update access for ${missing.slice(0, 2).join(', ')}${missing.length > 2 ? '...' : ''}`
+          ? `Update blocked: missing access for ${missing.slice(0, 2).join(', ')}${missing.length > 2 ? '...' : ''}`
           : 'Edit';
         return (
           <Space size={4}>
