@@ -164,7 +164,7 @@ export default function EdgeCasesPage() {
         onClick={() => navigate('/scenarios')}
         style={{ marginBottom: 16 }}
       >
-        Back to Scenarios
+        ← Back to Scenarios
       </Button>
 
       <Typography.Title level={4} style={{ marginBottom: 8 }}>

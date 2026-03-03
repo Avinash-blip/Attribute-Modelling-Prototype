@@ -117,7 +117,7 @@ const scenario1: ScenarioFixture = {
   id: 'scenario-1',
   number: 1,
   title: 'One Person, Two Branches, Different Permissions',
-  subtitle: 'Same user: full CRUD in South, view-only in West',
+  subtitle: 'Same user has full access in one branch, view-only in another',
   category: 'Branch Access',
   priority: 'Must Have',
   situation: 'A regional controller works across two branches with different roles — active operations in one, monitoring only in the other.',
@@ -181,7 +181,7 @@ const scenario2: ScenarioFixture = {
   id: 'scenario-2',
   number: 2,
   title: 'Two Teams in Same Branch, Separate Data',
-  subtitle: 'FMCG vs Cement in Mumbai — shared vehicles, isolated journeys',
+  subtitle: 'Two teams in one office see only their own shipments',
   category: 'Data Isolation',
   priority: 'Must Have',
   situation: 'Two teams in the same branch handle different goods. Each team must only see their own journeys; shared vehicles do not leak data.',
@@ -259,15 +259,15 @@ const sc25Journeys: MockJourney[] = [
 ];
 
 const scenario25: ScenarioFixture = {
-  id: 'scenario-25',
-  number: 25,
-  title: 'Internal Stock Transfer (Cross-Branch Indent)',
-  subtitle: "B1 raises indents from B2's data for stock transfer; B2 views and approves",
+  id: 'scenario-3',
+  number: 3,
+  title: 'Internal Stock Transfer Indent',
+  subtitle: 'Branch raises indent to receive goods from another branch using their master data',
   category: 'Cross-Branch',
   priority: 'Must Have',
-  situation: "Diageo's Nashik distillery needs raw materials from the Aurangabad warehouse. The Nashik team raises indent requests using Aurangabad's master data (specific routes, vehicles, materials). The Aurangabad team views these transfer requests and can approve or edit them, but only Nashik can create new ones.",
-  howItWorks: "Nashik ops gets a cross-branch attribute with selective Aurangabad master data (Full CRUD) plus their own branch attribute. Aurangabad ops gets their branch attribute with Read+Update permissions — they can see and modify transfer indents but cannot create new ones. Aurangabad's internal shipments (using items Nashik doesn't have access to) remain invisible to Nashik.",
-  keyInsight: "Cross-branch attributes with selective master data enable internal stock transfers where the requesting branch creates indents using the supplying branch's data, while maintaining data isolation for each branch's internal operations.",
+  situation: "Diageo's Nashik distillery needs raw materials stored at the Aurangabad warehouse. The Nashik team raises an indent on behalf of their branch, requesting specific goods to be shipped from Aurangabad. They can only use the routes, vehicles, materials, and transporters from Aurangabad that they have been given access to. The Aurangabad team can view and edit these transfer indents to accept or modify them, but Nashik cannot touch Aurangabad's other internal shipments.",
+  howItWorks: "The Nashik team gets a cross-branch attribute with access to selected Aurangabad master data. They raise indents using that data. The Aurangabad team has their own attribute covering all Aurangabad data with read and update permissions, so they can view and approve the transfer requests. Nashik also has their own branch attribute for their outbound shipments. Each branch's internal operations remain invisible to the other.",
+  keyInsight: "Cross-branch attributes let one branch raise indents using another branch's master data while keeping each branch's internal operations private.",
   masterDataItems: sc25MasterData,
   branches: sc25Branches,
   attributes: sc25Attributes,
@@ -341,10 +341,10 @@ const sc3Journeys: MockJourney[] = [
 ];
 
 const scenario3: ScenarioFixture = {
-  id: 'scenario-3',
-  number: 3,
+  id: 'scenario-4',
+  number: 4,
   title: 'Business Head vs Regional Head (Hierarchy)',
-  subtitle: 'Sharma sees all, edits none; Priya sees and edits North only',
+  subtitle: 'Business head sees everything read-only, regional head manages their area',
   category: 'Hierarchy',
   priority: 'Must Have',
   situation: 'Business head needs visibility across all regions; regional heads need full control of their region only.',
@@ -421,10 +421,10 @@ const sc4Journeys: MockJourney[] = [
 ];
 
 const scenario4: ScenarioFixture = {
-  id: 'scenario-4',
-  number: 4,
+  id: 'scenario-5',
+  number: 5,
   title: 'Cross-Branch Regional Leader',
-  subtitle: 'Vikram sees North region across SPD, TMCV, DEF',
+  subtitle: 'One leader sees North region across three branches',
   category: 'Cross-Branch',
   priority: 'Must Have',
   situation: 'A regional director is responsible for North across multiple branches and needs one view of all North data.',
@@ -512,10 +512,10 @@ const sc5Journeys: MockJourney[] = [
 ];
 
 const scenario5: ScenarioFixture = {
-  id: 'scenario-5',
-  number: 5,
+  id: 'scenario-6',
+  number: 6,
   title: 'Supplier Cross-Branch Access',
-  subtitle: 'Supplier creates indents across 3 branches using selective master data; branch users see only their own',
+  subtitle: 'Supplier sees shipments across three plants; each plant sees only its own',
   category: 'Shared Entities',
   priority: 'Must Have',
   situation: 'A supplier services multiple branches of a company. They need one login to create indents across all three branches, but only using the specific routes, materials, and vehicles they are contracted for at each branch. Each branch\'s internal ops team should only see transactions relevant to their own plant.',
@@ -583,10 +583,10 @@ const sc6Journeys: MockJourney[] = [
 ];
 
 const scenario6: ScenarioFixture = {
-  id: 'scenario-6',
-  number: 6,
+  id: 'scenario-7',
+  number: 7,
   title: 'Ops vs Finance',
-  subtitle: 'Karthik edits 4 Chennai; Anita sees all 8, edits 0',
+  subtitle: 'Ops edits one branch; finance sees all branches, view-only',
   category: 'Department Roles',
   priority: 'Must Have',
   situation: 'Finance needs visibility across all branches for costs and invoices; Ops needs full control only within their branch.',
@@ -604,22 +604,86 @@ const scenario6: ScenarioFixture = {
   ],
 };
 
-// --- Scenario 7: Dashboard Filtering (reuse Scenario 3 structure) ---
+// --- Scenario 7: Dashboard Filtering Based on Access ---
+const sc7Branches: Branch[] = [
+  { id: 'sc7-br-tmcv', name: 'TMCV Division', code: 'TMCV' },
+  { id: 'sc7-br-spd', name: 'SPD Division', code: 'SPD' },
+  { id: 'sc7-br-def', name: 'DEF Division', code: 'DEF' },
+];
+
+const sc7TmcvIds = ['sc7-r-tmcv-1', 'sc7-r-tmcv-2', 'sc7-v-tmcv-1', 'sc7-m-tmcv-1', 'sc7-t-tmcv-1'];
+const sc7SpdIds = ['sc7-r-spd-1', 'sc7-r-spd-2', 'sc7-v-spd-1', 'sc7-m-spd-1', 'sc7-t-spd-1'];
+const sc7DefIds = ['sc7-r-def-1', 'sc7-r-def-2', 'sc7-v-def-1', 'sc7-m-def-1', 'sc7-t-def-1'];
+const sc7AllIds = [...sc7TmcvIds, ...sc7SpdIds, ...sc7DefIds];
+
+const sc7MasterData: MasterDataItem[] = [
+  { id: 'sc7-r-tmcv-1', name: 'Pune → Jamshedpur', type: 'routes', branch: 'sc7-br-tmcv', onboardedAt: 'branch' },
+  { id: 'sc7-r-tmcv-2', name: 'Jamshedpur → Pune', type: 'routes', branch: 'sc7-br-tmcv', onboardedAt: 'branch' },
+  { id: 'sc7-v-tmcv-1', name: 'Flatbed 40MT', type: 'vehicle_type_master', branch: 'sc7-br-tmcv', onboardedAt: 'branch' },
+  { id: 'sc7-m-tmcv-1', name: 'CKD Truck Parts', type: 'material_master', branch: 'sc7-br-tmcv', onboardedAt: 'branch' },
+  { id: 'sc7-t-tmcv-1', name: 'Tata Logistics', type: 'transporter_master', branch: 'sc7-br-tmcv', onboardedAt: 'branch' },
+  { id: 'sc7-r-spd-1', name: 'Mumbai → Chennai', type: 'routes', branch: 'sc7-br-spd', onboardedAt: 'branch' },
+  { id: 'sc7-r-spd-2', name: 'Chennai → Mumbai', type: 'routes', branch: 'sc7-br-spd', onboardedAt: 'branch' },
+  { id: 'sc7-v-spd-1', name: 'Car Carrier 12-unit', type: 'vehicle_type_master', branch: 'sc7-br-spd', onboardedAt: 'branch' },
+  { id: 'sc7-m-spd-1', name: 'Sedan Components', type: 'material_master', branch: 'sc7-br-spd', onboardedAt: 'branch' },
+  { id: 'sc7-t-spd-1', name: 'Gati Express', type: 'transporter_master', branch: 'sc7-br-spd', onboardedAt: 'branch' },
+  { id: 'sc7-r-def-1', name: 'Avadi → Jabalpur', type: 'routes', branch: 'sc7-br-def', onboardedAt: 'branch' },
+  { id: 'sc7-r-def-2', name: 'Jabalpur → Avadi', type: 'routes', branch: 'sc7-br-def', onboardedAt: 'branch' },
+  { id: 'sc7-v-def-1', name: 'Armoured Carrier', type: 'vehicle_type_master', branch: 'sc7-br-def', onboardedAt: 'branch' },
+  { id: 'sc7-m-def-1', name: 'Defence Equipment', type: 'material_master', branch: 'sc7-br-def', onboardedAt: 'branch' },
+  { id: 'sc7-t-def-1', name: 'Military Logistics Corp', type: 'transporter_master', branch: 'sc7-br-def', onboardedAt: 'branch' },
+];
+
+const sc7Attributes: Attribute[] = [
+  attr('sc7-attr-tmcv', 'TMCV Segment', 'branch', sc7TmcvIds, ['sc7-br-tmcv'], sc7MasterData),
+  attr('sc7-attr-spd', 'SPD Segment', 'branch', sc7SpdIds, ['sc7-br-spd'], sc7MasterData),
+  attr('sc7-attr-def', 'DEF Segment', 'branch', sc7DefIds, ['sc7-br-def'], sc7MasterData),
+  attr('sc7-attr-all', 'All Segments', 'company', sc7AllIds, ['sc7-br-tmcv', 'sc7-br-spd', 'sc7-br-def'], sc7MasterData),
+];
+
+const sc7Users: User[] = [
+  { id: 'sc7-user-tmcv', name: 'Vikram (TMCV Head)', email: 'vikram@company.com', role: 'TMCV Head', legoActorType: 'branch_user', level: 'branch', branchId: 'sc7-br-tmcv', attributeAssignments: [{ attributeId: 'sc7-attr-tmcv', crudPreset: 'full_crud' }] },
+  { id: 'sc7-user-spd', name: 'Priya (SPD Head)', email: 'priya@company.com', role: 'SPD Head', legoActorType: 'branch_user', level: 'branch', branchId: 'sc7-br-spd', attributeAssignments: [{ attributeId: 'sc7-attr-spd', crudPreset: 'full_crud' }] },
+  { id: 'sc7-user-def', name: 'Col. Sharma (DEF Head)', email: 'sharma@company.com', role: 'DEF Head', legoActorType: 'branch_user', level: 'branch', branchId: 'sc7-br-def', attributeAssignments: [{ attributeId: 'sc7-attr-def', crudPreset: 'read_only' }] },
+  { id: 'sc7-user-national', name: 'Rajesh (National Ops Head)', email: 'rajesh@company.com', role: 'National Ops Head', legoActorType: 'company_user', level: 'company', attributeAssignments: [{ attributeId: 'sc7-attr-all', crudPreset: 'read_only' }] },
+];
+
+const sc7Journeys: MockJourney[] = [
+  { id: 'sc7-jrn-t1', branchId: 'sc7-br-tmcv', from: 'Pune', to: 'Jamshedpur', routeItemId: 'sc7-r-tmcv-1', vehicleNumber: 'MH12AA1001', vehicleType: 'Flatbed 40MT', vehicleTypeItemId: 'sc7-v-tmcv-1', materialItemId: 'sc7-m-tmcv-1', transporterItemId: 'sc7-t-tmcv-1', sim: true, gps: true, phone: '9876500071', slaStatus: 'On Time', eta: '06:00 pm', alert: null, alertTime: null, attribute: 'sc7-attr-tmcv' },
+  { id: 'sc7-jrn-t2', branchId: 'sc7-br-tmcv', from: 'Jamshedpur', to: 'Pune', routeItemId: 'sc7-r-tmcv-2', vehicleNumber: 'MH12AA1002', vehicleType: 'Flatbed 40MT', vehicleTypeItemId: 'sc7-v-tmcv-1', materialItemId: 'sc7-m-tmcv-1', transporterItemId: 'sc7-t-tmcv-1', sim: true, gps: false, phone: '9876500072', slaStatus: 'On Time', eta: '08:00 pm', alert: null, alertTime: null, attribute: 'sc7-attr-tmcv' },
+  { id: 'sc7-jrn-t3', branchId: 'sc7-br-tmcv', from: 'Pune', to: 'Jamshedpur', routeItemId: 'sc7-r-tmcv-1', vehicleNumber: 'MH12AA1003', vehicleType: 'Flatbed 40MT', vehicleTypeItemId: 'sc7-v-tmcv-1', materialItemId: 'sc7-m-tmcv-1', transporterItemId: 'sc7-t-tmcv-1', sim: false, gps: true, phone: '9876500073', slaStatus: 'At Risk', eta: '07:00 pm', alert: 'Delay', alertTime: '1 hr ago', attribute: 'sc7-attr-tmcv' },
+  { id: 'sc7-jrn-t4', branchId: 'sc7-br-tmcv', from: 'Jamshedpur', to: 'Pune', routeItemId: 'sc7-r-tmcv-2', vehicleNumber: 'MH12AA1004', vehicleType: 'Flatbed 40MT', vehicleTypeItemId: 'sc7-v-tmcv-1', materialItemId: 'sc7-m-tmcv-1', transporterItemId: 'sc7-t-tmcv-1', sim: true, gps: true, phone: '9876500074', slaStatus: 'Delayed', eta: '09:00 pm', alert: 'Breakdown', alertTime: '30 min ago', attribute: 'sc7-attr-tmcv' },
+  { id: 'sc7-jrn-s1', branchId: 'sc7-br-spd', from: 'Mumbai', to: 'Chennai', routeItemId: 'sc7-r-spd-1', vehicleNumber: 'MH04BB2001', vehicleType: 'Car Carrier 12-unit', vehicleTypeItemId: 'sc7-v-spd-1', materialItemId: 'sc7-m-spd-1', transporterItemId: 'sc7-t-spd-1', sim: true, gps: true, phone: '9876500075', slaStatus: 'On Time', eta: '05:00 pm', alert: null, alertTime: null, attribute: 'sc7-attr-spd' },
+  { id: 'sc7-jrn-s2', branchId: 'sc7-br-spd', from: 'Chennai', to: 'Mumbai', routeItemId: 'sc7-r-spd-2', vehicleNumber: 'MH04BB2002', vehicleType: 'Car Carrier 12-unit', vehicleTypeItemId: 'sc7-v-spd-1', materialItemId: 'sc7-m-spd-1', transporterItemId: 'sc7-t-spd-1', sim: true, gps: false, phone: '9876500076', slaStatus: 'On Time', eta: '07:00 pm', alert: null, alertTime: null, attribute: 'sc7-attr-spd' },
+  { id: 'sc7-jrn-s3', branchId: 'sc7-br-spd', from: 'Mumbai', to: 'Chennai', routeItemId: 'sc7-r-spd-1', vehicleNumber: 'MH04BB2003', vehicleType: 'Car Carrier 12-unit', vehicleTypeItemId: 'sc7-v-spd-1', materialItemId: 'sc7-m-spd-1', transporterItemId: 'sc7-t-spd-1', sim: false, gps: true, phone: '9876500077', slaStatus: 'At Risk', eta: '06:30 pm', alert: null, alertTime: null, attribute: 'sc7-attr-spd' },
+  { id: 'sc7-jrn-s4', branchId: 'sc7-br-spd', from: 'Chennai', to: 'Mumbai', routeItemId: 'sc7-r-spd-2', vehicleNumber: 'MH04BB2004', vehicleType: 'Car Carrier 12-unit', vehicleTypeItemId: 'sc7-v-spd-1', materialItemId: 'sc7-m-spd-1', transporterItemId: 'sc7-t-spd-1', sim: true, gps: true, phone: '9876500078', slaStatus: 'Delayed', eta: '08:00 pm', alert: 'Toll delay', alertTime: '45 min ago', attribute: 'sc7-attr-spd' },
+  { id: 'sc7-jrn-d1', branchId: 'sc7-br-def', from: 'Avadi', to: 'Jabalpur', routeItemId: 'sc7-r-def-1', vehicleNumber: 'TN09CC3001', vehicleType: 'Armoured Carrier', vehicleTypeItemId: 'sc7-v-def-1', materialItemId: 'sc7-m-def-1', transporterItemId: 'sc7-t-def-1', sim: true, gps: true, phone: '9876500079', slaStatus: 'On Time', eta: '04:00 pm', alert: null, alertTime: null, attribute: 'sc7-attr-def' },
+  { id: 'sc7-jrn-d2', branchId: 'sc7-br-def', from: 'Jabalpur', to: 'Avadi', routeItemId: 'sc7-r-def-2', vehicleNumber: 'TN09CC3002', vehicleType: 'Armoured Carrier', vehicleTypeItemId: 'sc7-v-def-1', materialItemId: 'sc7-m-def-1', transporterItemId: 'sc7-t-def-1', sim: true, gps: false, phone: '9876500080', slaStatus: 'On Time', eta: '06:00 pm', alert: null, alertTime: null, attribute: 'sc7-attr-def' },
+  { id: 'sc7-jrn-d3', branchId: 'sc7-br-def', from: 'Avadi', to: 'Jabalpur', routeItemId: 'sc7-r-def-1', vehicleNumber: 'TN09CC3003', vehicleType: 'Armoured Carrier', vehicleTypeItemId: 'sc7-v-def-1', materialItemId: 'sc7-m-def-1', transporterItemId: 'sc7-t-def-1', sim: false, gps: true, phone: '9876500081', slaStatus: 'At Risk', eta: '05:30 pm', alert: null, alertTime: null, attribute: 'sc7-attr-def' },
+  { id: 'sc7-jrn-d4', branchId: 'sc7-br-def', from: 'Jabalpur', to: 'Avadi', routeItemId: 'sc7-r-def-2', vehicleNumber: 'TN09CC3004', vehicleType: 'Armoured Carrier', vehicleTypeItemId: 'sc7-v-def-1', materialItemId: 'sc7-m-def-1', transporterItemId: 'sc7-t-def-1', sim: true, gps: true, phone: '9876500082', slaStatus: 'On Time', eta: '07:30 pm', alert: null, alertTime: null, attribute: 'sc7-attr-def' },
+];
+
 const scenario7: ScenarioFixture = {
-  ...scenario3,
-  id: 'scenario-7',
-  number: 7,
+  id: 'scenario-8',
+  number: 8,
   title: 'Dashboard Filtering Based on Access',
-  subtitle: 'Anita sees North only; Raj sees all regions',
+  subtitle: 'Regional head sees only their segment\'s dashboard data',
   category: 'Reporting',
   priority: 'Must Have',
-  situation: 'Dashboards and reports must only show data the user is allowed to see. Regional head sees regional metrics; business head sees all.',
-  howItWorks: 'Same attribute setup as Scenario 3. Journey list acts as the dashboard table — filtered by attribute scope.',
-  keyInsight: 'Any list or report respects the same permission map; no separate dashboard logic needed.',
-  highlightUsers: ['sc3-user-priya', 'sc3-user-sharma'],
+  situation: "A logistics company has three business segments: TMCV (commercial vehicles), SPD (passenger vehicles), and DEF (defence). Each segment head needs to see performance dashboards showing only their segment's data. A national operations head needs to see all three segments combined.",
+  howItWorks: "Each segment head gets an attribute scoped to their segment's master data. The national head gets an attribute covering all three segments. Dashboard charts, KPIs, and tables automatically filter based on the user's attribute — the same dashboard page shows different data depending on who is logged in.",
+  keyInsight: "The same dashboard page serves every user — attributes control what data populates the charts, not which charts are shown.",
+  masterDataItems: sc7MasterData,
+  branches: sc7Branches,
+  attributes: sc7Attributes,
+  users: sc7Users,
+  journeys: sc7Journeys,
+  highlightUsers: ['sc7-user-tmcv', 'sc7-user-spd', 'sc7-user-def', 'sc7-user-national'],
   expectedOutcomes: [
-    { userId: 'sc3-user-priya', userName: 'Ms. Priya (Anita)', description: 'Journey list shows only North data', canSeeJourneys: 2, canEditJourneys: 2 },
-    { userId: 'sc3-user-sharma', userName: 'Mr. Raj (SPD_ALL)', description: 'Journey list shows all regions; filter by attribute changes count', canSeeJourneys: 8, canEditJourneys: 0 },
+    { userId: 'sc7-user-tmcv', userName: 'Vikram (TMCV Head)', description: 'Sees 4 TMCV journeys, edits all 4', canSeeJourneys: 4, canEditJourneys: 4 },
+    { userId: 'sc7-user-spd', userName: 'Priya (SPD Head)', description: 'Sees 4 SPD journeys, edits all 4', canSeeJourneys: 4, canEditJourneys: 4 },
+    { userId: 'sc7-user-def', userName: 'Col. Sharma (DEF Head)', description: 'Sees 4 DEF journeys, edits 0 (read only)', canSeeJourneys: 4, canEditJourneys: 0 },
+    { userId: 'sc7-user-national', userName: 'Rajesh (National Ops Head)', description: 'Sees all 12 journeys, edits 0 (read only)', canSeeJourneys: 12, canEditJourneys: 0 },
   ],
 };
 
@@ -659,10 +723,10 @@ const sc8Journeys: MockJourney[] = [
 ];
 
 const scenario8: ScenarioFixture = {
-  id: 'scenario-8',
-  number: 8,
+  id: 'scenario-9',
+  number: 9,
   title: 'New User with No Attributes Assigned Yet',
-  subtitle: 'Sunil sees all Pune (fallback); Ops sees only FMCG',
+  subtitle: 'New user sees all branch data until given a role',
   category: 'Default Behaviour',
   priority: 'Must Have',
   situation: 'A new joiner has no tags yet. System can grant full branch access until attributes are assigned (Option B — Open Start).',
@@ -677,67 +741,6 @@ const scenario8: ScenarioFixture = {
   expectedOutcomes: [
     { userId: 'sc8-user-sunil', userName: 'Sunil', description: 'Sees all 6 Pune journeys (default fallback)', canSeeJourneys: 6, canEditJourneys: 6 },
     { userId: 'sc8-user-ops', userName: 'Pune Ops User', description: 'Sees only 3 FMCG journeys (attribute scoped)', canSeeJourneys: 3, canEditJourneys: 3 },
-  ],
-};
-
-// --- Scenario 11: External Partner Access ---
-const sc11Branches: Branch[] = [{ id: 'sc11-br-mum', name: 'Mumbai HQ', code: 'MUM' }];
-
-const sc11AbcIds = ['sc11-md-r1', 'sc11-md-r2', 'sc11-md-v1', 'sc11-md-m1', 'sc11-md-t1'];
-const sc11AllIds = [...sc11AbcIds, 'sc11-md-r3', 'sc11-md-v2', 'sc11-md-m2', 'sc11-md-t2'];
-
-const sc11MasterData: MasterDataItem[] = [
-  { id: 'sc11-md-r1', name: 'Mumbai → Pune (ABC corridor)', type: 'routes', branch: 'sc11-br-mum', onboardedAt: 'branch' },
-  { id: 'sc11-md-r2', name: 'Mumbai → Nashik (ABC)', type: 'routes', branch: 'sc11-br-mum', onboardedAt: 'branch' },
-  { id: 'sc11-md-r3', name: 'Mumbai → Goa', type: 'routes', branch: 'sc11-br-mum', onboardedAt: 'branch' },
-  { id: 'sc11-md-v1', name: 'MH-04 ABC Fleet', type: 'vehicle_type_master', branch: 'sc11-br-mum', onboardedAt: 'branch' },
-  { id: 'sc11-md-v2', name: 'MH-04 Internal Fleet', type: 'vehicle_type_master', branch: 'sc11-br-mum', onboardedAt: 'branch' },
-  { id: 'sc11-md-m1', name: '10 MT Nirma (ABC)', type: 'material_master', branch: 'sc11-br-mum', onboardedAt: 'branch' },
-  { id: 'sc11-md-m2', name: '12 MT Cadbury (Internal)', type: 'material_master', branch: 'sc11-br-mum', onboardedAt: 'branch' },
-  { id: 'sc11-md-t1', name: 'ABC Transport', type: 'transporter_master', branch: 'sc11-br-mum', onboardedAt: 'branch' },
-  { id: 'sc11-md-t2', name: 'Southern Express', type: 'transporter_master', branch: 'sc11-br-mum', onboardedAt: 'branch' },
-];
-
-const sc11Attributes: Attribute[] = [
-  attr('sc11-attr-abc', 'ABC Supplier Portal', 'branch', sc11AbcIds, ['sc11-br-mum'], sc11MasterData),
-  attr('sc11-attr-internal', 'Internal Ops', 'branch', sc11AllIds, ['sc11-br-mum'], sc11MasterData),
-];
-
-const sc11Users: User[] = [
-  { id: 'sc11-user-abc', name: 'ABC Supplier User', email: 'abc@supplier.com', role: 'External Partner', legoActorType: 'branch_user', level: 'branch', branchId: 'sc11-br-mum', attributeAssignments: toAssignments(['sc11-attr-abc']) },
-  { id: 'sc11-user-internal', name: 'Internal Ops User', email: 'ops@company.com', role: 'Ops', legoActorType: 'branch_user', level: 'branch', branchId: 'sc11-br-mum', attributeAssignments: toAssignments(['sc11-attr-internal']) },
-];
-
-const sc11Journeys: MockJourney[] = [
-  { id: 'sc11-jrn-001', branchId: 'sc11-br-mum', from: 'Mumbai', to: 'Pune', routeItemId: 'sc11-md-r1', vehicleNumber: 'MH04AB1001', vehicleType: 'MH-04 ABC Fleet', vehicleTypeItemId: 'sc11-md-v1', materialItemId: 'sc11-md-m1', transporterItemId: 'sc11-md-t1', sim: true, gps: true, phone: '9876500040', slaStatus: 'On Time', eta: '06:00 pm', alert: null, alertTime: null, attribute: 'sc11-attr-abc' },
-  { id: 'sc11-jrn-002', branchId: 'sc11-br-mum', from: 'Pune', to: 'Mumbai', routeItemId: 'sc11-md-r1', vehicleNumber: 'MH04AB1001', vehicleType: 'MH-04 ABC Fleet', vehicleTypeItemId: 'sc11-md-v1', materialItemId: 'sc11-md-m1', transporterItemId: 'sc11-md-t1', sim: true, gps: false, phone: '9876500041', slaStatus: 'On Time', eta: '08:00 pm', alert: null, alertTime: null, attribute: 'sc11-attr-abc' },
-  { id: 'sc11-jrn-003', branchId: 'sc11-br-mum', from: 'Mumbai', to: 'Nashik', routeItemId: 'sc11-md-r2', vehicleNumber: 'MH04AB1002', vehicleType: 'MH-04 ABC Fleet', vehicleTypeItemId: 'sc11-md-v1', materialItemId: 'sc11-md-m1', transporterItemId: 'sc11-md-t1', sim: false, gps: true, phone: '9876500042', slaStatus: 'Delayed', eta: '05:00 pm', alert: 'Delay', alertTime: '1 hr ago', attribute: 'sc11-attr-abc' },
-  { id: 'sc11-jrn-004', branchId: 'sc11-br-mum', from: 'Nashik', to: 'Mumbai', routeItemId: 'sc11-md-r2', vehicleNumber: 'MH04AB1002', vehicleType: 'MH-04 ABC Fleet', vehicleTypeItemId: 'sc11-md-v1', materialItemId: 'sc11-md-m1', transporterItemId: 'sc11-md-t1', sim: true, gps: true, phone: '9876500043', slaStatus: 'On Time', eta: '07:00 pm', alert: null, alertTime: null, attribute: 'sc11-attr-abc' },
-  { id: 'sc11-jrn-005', branchId: 'sc11-br-mum', from: 'Mumbai', to: 'Goa', routeItemId: 'sc11-md-r3', vehicleNumber: 'MH04CD2001', vehicleType: 'MH-04 Internal Fleet', vehicleTypeItemId: 'sc11-md-v2', materialItemId: 'sc11-md-m2', transporterItemId: 'sc11-md-t2', sim: true, gps: true, phone: '9876500044', slaStatus: 'On Time', eta: '04:00 pm', alert: null, alertTime: null, attribute: 'sc11-attr-internal' },
-  { id: 'sc11-jrn-006', branchId: 'sc11-br-mum', from: 'Goa', to: 'Mumbai', routeItemId: 'sc11-md-r3', vehicleNumber: 'MH04CD2001', vehicleType: 'MH-04 Internal Fleet', vehicleTypeItemId: 'sc11-md-v2', materialItemId: 'sc11-md-m2', transporterItemId: 'sc11-md-t2', sim: true, gps: true, phone: '9876500045', slaStatus: 'At Risk', eta: '09:00 pm', alert: null, alertTime: null, attribute: 'sc11-attr-internal' },
-  { id: 'sc11-jrn-007', branchId: 'sc11-br-mum', from: 'Mumbai', to: 'Pune', routeItemId: 'sc11-md-r1', vehicleNumber: 'MH04CD2002', vehicleType: 'MH-04 Internal Fleet', vehicleTypeItemId: 'sc11-md-v2', materialItemId: 'sc11-md-m2', transporterItemId: 'sc11-md-t2', sim: true, gps: false, phone: '9876500046', slaStatus: 'On Time', eta: '06:30 pm', alert: null, alertTime: null, attribute: 'sc11-attr-internal' },
-  { id: 'sc11-jrn-008', branchId: 'sc11-br-mum', from: 'Pune', to: 'Mumbai', routeItemId: 'sc11-md-r1', vehicleNumber: 'MH04CD2002', vehicleType: 'MH-04 Internal Fleet', vehicleTypeItemId: 'sc11-md-v2', materialItemId: 'sc11-md-m2', transporterItemId: 'sc11-md-t2', sim: true, gps: true, phone: '9876500047', slaStatus: 'On Time', eta: '08:30 pm', alert: null, alertTime: null, attribute: 'sc11-attr-internal' },
-];
-
-const scenario11: ScenarioFixture = {
-  id: 'scenario-11',
-  number: 11,
-  title: 'External Partner Portal Access',
-  subtitle: 'ABC Supplier sees only their 4 journeys; Internal sees all 8',
-  category: 'External Users',
-  priority: 'Must Have',
-  situation: 'External partner (e.g. transporter) must see only their own trips; internal ops sees everything.',
-  howItWorks: 'ABC Supplier attribute includes only ABC routes, vehicles, materials, transporters. Internal Ops has full CRUD on all Mumbai items.',
-  keyInsight: 'Attribute scope defines partner portal visibility without separate tenant logic.',
-  masterDataItems: sc11MasterData,
-  branches: sc11Branches,
-  attributes: sc11Attributes,
-  users: sc11Users,
-  journeys: sc11Journeys,
-  highlightUsers: ['sc11-user-abc', 'sc11-user-internal'],
-  expectedOutcomes: [
-    { userId: 'sc11-user-abc', userName: 'ABC Supplier User', description: 'Sees only 4 ABC journeys', canSeeJourneys: 4, canEditJourneys: 4 },
-    { userId: 'sc11-user-internal', userName: 'Internal Ops User', description: 'Sees all 8 journeys', canSeeJourneys: 8, canEditJourneys: 8 },
   ],
 };
 
@@ -783,10 +786,10 @@ const sc16Journeys: MockJourney[] = [
 ];
 
 const scenario16: ScenarioFixture = {
-  id: 'scenario-16',
-  number: 16,
+  id: 'scenario-10',
+  number: 10,
   title: 'Bulk Actions Across Mixed Access Boundaries',
-  subtitle: 'Anil sees 10; can edit 6 North, 4 South read-only',
+  subtitle: 'User sees two regions: full access in one, view-only in the other',
   category: 'Bulk Operations',
   priority: 'Supported',
   situation: 'User has full access to one region and read-only to another. Bulk actions would update only the rows they can edit.',
@@ -850,10 +853,10 @@ const sc18Journeys: MockJourney[] = [
 ];
 
 const scenario18: ScenarioFixture = {
-  id: 'scenario-18',
-  number: 18,
+  id: 'scenario-11',
+  number: 11,
   title: 'Conflicting Access Rules — Most Permissive Wins',
-  subtitle: 'Lakshmi: SPD_NORTH (CRUD) + SPD_ALL (view); can edit 2 North',
+  subtitle: 'User has two roles: full access in one region, view-only everywhere',
   category: 'Conflict Resolution',
   priority: 'Must Have',
   situation: 'User has two tags: one gives full CRUD on North, one gives view-only on all. Permissions are unioned — most permissive wins.',
@@ -881,7 +884,6 @@ export const SCENARIO_FIXTURES: ScenarioFixture[] = [
   scenario6,
   scenario7,
   scenario8,
-  scenario11,
   scenario16,
   scenario18,
 ];

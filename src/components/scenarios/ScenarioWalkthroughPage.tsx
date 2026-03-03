@@ -7,6 +7,7 @@ import {
   Empty,
   Result,
   Space,
+  Statistic,
   Table,
   Tabs,
   Tag,
@@ -301,10 +302,10 @@ function MappingTab({ scenario }: { scenario: ScenarioFixture }) {
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
       <Typography.Title level={5}>Item Access Across Attributes</Typography.Title>
       {overlapPanels.length > 0 && (
-        <Collapse items={overlapPanels} defaultActiveKey={overlapPanels.map((p) => p.key).slice(0, 2)} />
+        <Collapse items={overlapPanels} defaultActiveKey={[]} />
       )}
       <Typography.Title level={5} style={{ marginTop: 24 }}>Per-attribute detail</Typography.Title>
-      <Collapse items={detailPanels} defaultActiveKey={attributes.map((a) => a.id)} />
+      <Collapse items={detailPanels} defaultActiveKey={[]} />
     </Space>
   );
 }
@@ -511,6 +512,92 @@ function LiveDemoTab({ scenario }: { scenario: ScenarioFixture }) {
         </Space>
       </div>
 
+      {scenario.number === 8 && (
+        <>
+          <Alert
+            type="info"
+            showIcon
+            message="Dashboard filtered by attribute scope"
+            description="This dashboard auto-filters based on your attribute scope. Switch users to see how the same dashboard shows different data."
+            style={{ marginBottom: 16 }}
+          />
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+            <Card size="small" style={{ minWidth: 120 }}>
+              <Statistic title="Total Journeys" value={visible.length} />
+            </Card>
+            <Card size="small" style={{ minWidth: 120 }}>
+              <Statistic
+                title="On Time"
+                value={visible.filter((j) => j.slaStatus === 'On Time').length}
+                valueStyle={{ color: '#52c41a' }}
+              />
+            </Card>
+            <Card size="small" style={{ minWidth: 120 }}>
+              <Statistic
+                title="At Risk"
+                value={visible.filter((j) => j.slaStatus === 'At Risk').length}
+                valueStyle={{ color: '#fa8c16' }}
+              />
+            </Card>
+            <Card size="small" style={{ minWidth: 120 }}>
+              <Statistic
+                title="Delayed"
+                value={visible.filter((j) => j.slaStatus === 'Delayed').length}
+                valueStyle={{ color: '#ff4d4f' }}
+              />
+            </Card>
+            <Card size="small" style={{ minWidth: 120 }}>
+              <Statistic
+                title="On-Time %"
+                value={
+                  visible.length
+                    ? ((visible.filter((j) => j.slaStatus === 'On Time').length / visible.length) * 100).toFixed(1)
+                    : '0'
+                }
+                suffix="%"
+              />
+            </Card>
+          </div>
+          {(() => {
+            const branchIds = [...new Set(visible.map((j) => j.branchId))];
+            const branchName = (id: string) => scenario.branches.find((b) => b.id === id)?.name ?? id;
+            const segmentData = branchIds.map((branchId) => {
+              const seg = visible.filter((j) => j.branchId === branchId);
+              const onTime = seg.filter((j) => j.slaStatus === 'On Time').length;
+              const atRisk = seg.filter((j) => j.slaStatus === 'At Risk').length;
+              const delayed = seg.filter((j) => j.slaStatus === 'Delayed').length;
+              const otdPct = seg.length ? ((onTime / seg.length) * 100).toFixed(1) : '0';
+              return {
+                key: branchId,
+                segment: branchName(branchId),
+                journeys: seg.length,
+                onTime,
+                atRisk,
+                delayed,
+                otdPct: `${otdPct}%`,
+              };
+            });
+            return (
+              <Table
+                size="small"
+                dataSource={segmentData}
+                rowKey="key"
+                pagination={false}
+                columns={[
+                  { title: 'Segment', dataIndex: 'segment', key: 'segment' },
+                  { title: 'Journeys', dataIndex: 'journeys', key: 'journeys', width: 90 },
+                  { title: 'On Time', dataIndex: 'onTime', key: 'onTime', width: 90, render: (v: number) => <span style={{ color: '#52c41a' }}>{v}</span> },
+                  { title: 'At Risk', dataIndex: 'atRisk', key: 'atRisk', width: 90, render: (v: number) => <span style={{ color: '#fa8c16' }}>{v}</span> },
+                  { title: 'Delayed', dataIndex: 'delayed', key: 'delayed', width: 90, render: (v: number) => <span style={{ color: '#ff4d4f' }}>{v}</span> },
+                  { title: 'OTD %', dataIndex: 'otdPct', key: 'otdPct', width: 80 },
+                ]}
+                style={{ marginTop: 16, marginBottom: 16 }}
+              />
+            );
+          })()}
+        </>
+      )}
+
       {currentOutcome && (
         <Alert
           type="info"
@@ -663,7 +750,12 @@ function ScenarioWalkthroughContent({
         <Typography.Title level={4} style={{ margin: 0 }}>
           {scenario.title}
         </Typography.Title>
-        <Typography.Text type="secondary">{scenario.subtitle}</Typography.Text>
+        <Space align="center" wrap>
+          <Typography.Text type="secondary">{scenario.subtitle}</Typography.Text>
+          <Button type="link" size="small" onClick={() => navigate('/scenarios/edge-cases')} style={{ padding: 0, fontSize: 13 }}>
+            View Edge Cases →
+          </Button>
+        </Space>
       </div>
 
       <Tabs items={tabItems} />

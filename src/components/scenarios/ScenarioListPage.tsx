@@ -143,6 +143,20 @@ export default function ScenarioListPage() {
           </Card>
         ))}
       </div>
+
+      <Card
+        size="small"
+        hoverable
+        onClick={() => navigate('/scenarios/edge-cases')}
+        style={{ marginTop: 24 }}
+      >
+        <Typography.Text>
+          📋 Edge Cases Reference — See how the system handles tricky access control situations
+        </Typography.Text>
+        <Button type="link" style={{ padding: 0, marginTop: 8 }} icon={<RightOutlined />}>
+          View Edge Cases
+        </Button>
+      </Card>
     </div>
   );
 }
