@@ -6,7 +6,7 @@ import type { MockJourney } from '../data/mockData';
 export type POCOnboardingScenario = 'central_onboarding' | 'branch_specific_onboarding';
 
 const STORAGE_KEYS = {
-  scenarioData: 'abac_poc_scenario_data_v3',
+  scenarioData: 'abac_poc_scenario_data_v4',
   scenario: 'abac_poc_scenario',
 } as const;
 
@@ -119,7 +119,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         attributes: prev[pocOnboardingScenario].attributes.filter((a) => a.id !== id),
         users: prev[pocOnboardingScenario].users.map((u) => ({
           ...u,
-          attributeAssignments: u.attributeAssignments.filter((a) => a.attributeId !== id),
+          desks: u.desks.map((d) => ({ ...d, attributeIds: d.attributeIds.filter((aid) => aid !== id) })),
         })),
       },
     }));

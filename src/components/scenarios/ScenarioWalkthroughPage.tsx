@@ -22,22 +22,13 @@ import { getScenarioById, SCENARIO_FIXTURES } from '../../data/scenarioFixtures'
 import { MASTER_DATA_TYPE_LABELS } from '../../data/mockData';
 import { ScenarioProvider, useScenarioContext } from '../../context/ScenarioContext';
 import { resolveScenarioJourneyAccess, doesScenarioAttributeCoverItem } from './scenarioTransactionAccess';
-import { getAttributeItemIds } from '../../types';
-import { PRESET_PERMISSIONS } from '../../types';
+import { getAttributeItemIds, getActiveDesk, getRolePermissions, getRoleById } from '../../types';
 import type { ScenarioFixture } from '../../types/scenarios';
-import type { CrudPreset } from '../../types';
 
 const SLA_COLOR: Record<string, string> = {
   'On Time': 'green',
   Delayed: 'red',
   'At Risk': 'orange',
-};
-
-const PRESET_LABELS: Record<CrudPreset, string> = {
-  full_crud: 'Full CRUD',
-  read_only: 'Read Only',
-  create_read: 'Create + Read',
-  custom: 'Custom',
 };
 
 const ATTRIBUTE_COLORS = ['blue', 'green', 'orange', 'purple', 'cyan', 'magenta', 'geekblue', 'gold'];
@@ -91,7 +82,7 @@ function SetupTab({ scenario }: { scenario: ScenarioFixture }) {
               )}
               <Typography.Text style={{ fontSize: 12 }}>
                 {getAttributeItemIds(a.masterDataMapping).length} items ·{' '}
-                {users.filter((u) => u.attributeAssignments.some((x) => x.attributeId === a.id)).length} users
+                {users.filter((u) => u.desks.some((d) => d.attributeIds.includes(a.id))).length} users
               </Typography.Text>
             </Space>
           </Card>
@@ -100,7 +91,55 @@ function SetupTab({ scenario }: { scenario: ScenarioFixture }) {
       )}
 
       <Typography.Title level={5} style={{ marginTop: 16 }}>
-        Users (colored tags match attributes above)
+        Desks
+      </Typography.Title>
+      {(() => {
+        const deskList = Array.from(
+          new Map(users.flatMap((u) => u.desks.map((d) => [d.id, d] as const))).values()
+        );
+        if (deskList.length === 0) return <Empty description="No desks in this scenario" />;
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12 }}>
+            {deskList.map((desk) => {
+              const role = getRoleById(desk.roleId);
+              const perms = getRolePermissions(desk.roleId);
+              const attrLabels = desk.attributeIds.map(
+                (aid) => attributes.find((a) => a.id === aid)?.label ?? aid
+              );
+              return (
+                <Card key={desk.id} size="small" title={desk.name}>
+                  <Space direction="vertical" size={8}>
+                    {role && (
+                      <div>
+                        <Typography.Text type="secondary" style={{ fontSize: 11 }}>Role</Typography.Text>
+                        <div style={{ marginTop: 4 }}>
+                          <Tag color="purple">{role.name}</Tag>
+                          <Space size={4} wrap style={{ marginTop: 4 }}>
+                            {perms.map((p) => (
+                              <Tag key={p} style={{ fontSize: 10 }}>{p}</Tag>
+                            ))}
+                          </Space>
+                        </div>
+                      </div>
+                    )}
+                    <div>
+                      <Typography.Text type="secondary" style={{ fontSize: 11 }}>Attributes</Typography.Text>
+                      <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {attrLabels.map((label, i) => (
+                          <Tag key={i}>{label}</Tag>
+                        ))}
+                      </div>
+                    </div>
+                  </Space>
+                </Card>
+              );
+            })}
+          </div>
+        );
+      })()}
+
+      <Typography.Title level={5} style={{ marginTop: 16 }}>
+        Users
       </Typography.Title>
       <Table
         size="small"
@@ -109,7 +148,16 @@ function SetupTab({ scenario }: { scenario: ScenarioFixture }) {
         pagination={false}
         columns={[
           { title: 'Name', dataIndex: 'name', key: 'name', width: 160 },
-          { title: 'Role', dataIndex: 'role', key: 'role', width: 140 },
+          {
+            title: 'Active role',
+            key: 'role',
+            width: 120,
+            render: (_: unknown, r: (typeof users)[number]) => {
+              const desk = getActiveDesk(r);
+              const role = desk ? getRoleById(desk.roleId) : null;
+              return role ? <Tag color="purple">{role.name}</Tag> : '—';
+            },
+          },
           {
             title: 'Level / Branch',
             key: 'level',
@@ -118,20 +166,16 @@ function SetupTab({ scenario }: { scenario: ScenarioFixture }) {
               r.level === 'company' ? 'Company' : branchName(r.branchId ?? ''),
           },
           {
-            title: 'Assigned attributes',
-            key: 'attrs',
+            title: 'Desks',
+            key: 'desks',
             render: (_: unknown, r: (typeof users)[number]) => (
               <Space size={4} wrap>
-                {r.attributeAssignments.map((assignment) => {
-                  const attr = attributes.find((x) => x.id === assignment.attributeId);
-                  if (!attr) return null;
-                  const preset = assignment.crudPreset;
-                  const label = PRESET_LABELS[preset] ?? preset;
-                  const idx = attributes.indexOf(attr);
-                  const color = idx >= 0 ? attrColorByIndex(idx) : 'default';
+                {r.desks.map((desk) => {
+                  const role = getRoleById(desk.roleId);
+                  const roleName = role?.name ?? desk.roleId;
                   return (
-                    <Tag key={assignment.attributeId} color={color}>
-                      {attr.label} ({label})
+                    <Tag key={desk.id} color={attrColorByIndex(r.desks.indexOf(desk) % ATTRIBUTE_COLORS.length)}>
+                      {desk.name} ({roleName})
                     </Tag>
                   );
                 })}
@@ -314,6 +358,7 @@ function LiveDemoTab({ scenario }: { scenario: ScenarioFixture }) {
   const {
     currentUser,
     setCurrentUser,
+    setActiveDesk,
     attributes,
     users,
     journeys,
@@ -347,6 +392,11 @@ function LiveDemoTab({ scenario }: { scenario: ScenarioFixture }) {
   );
 
   function getPermissionBreakdown(journey: Row) {
+    const activeDesk = getActiveDesk(currentUser);
+    const rolePerms = activeDesk ? getRolePermissions(activeDesk.roleId) : [];
+    const roleName = activeDesk ? (getRoleById(activeDesk.roleId)?.name ?? 'Unknown') : 'No Desk';
+    const deskAttrs = activeDesk ? attributes.filter((a) => activeDesk.attributeIds.includes(a.id)) : [];
+
     const dims = [
       { key: 'Route', itemId: journey.routeItemId },
       { key: 'Vehicle', itemId: journey.vehicleTypeItemId },
@@ -358,15 +408,12 @@ function LiveDemoTab({ scenario }: { scenario: ScenarioFixture }) {
       const item = itemById.get(d.itemId);
       const itemName = item?.name ?? d.itemId;
       let coveredBy = 'Not covered';
-      let permission = '—';
+      const permission = roleName;
       let status: 'ok' | 'readonly' | 'missing' = 'missing';
-      for (const assignment of currentUser.attributeAssignments) {
-        const attr = attributes.find((a) => a.id === assignment.attributeId);
-        if (attr && doesScenarioAttributeCoverItem(attr, d.itemId, itemById)) {
+      for (const attr of deskAttrs) {
+        if (doesScenarioAttributeCoverItem(attr, d.itemId, itemById)) {
           coveredBy = attr.label;
-          const perms = assignment.crudPreset === 'custom' ? (assignment.customPermissions ?? []) : PRESET_PERMISSIONS[assignment.crudPreset];
-          permission = PRESET_LABELS[assignment.crudPreset] ?? assignment.crudPreset;
-          status = perms.includes('update') ? 'ok' : perms.includes('read') ? 'readonly' : 'missing';
+          status = rolePerms.includes('update') ? 'ok' : rolePerms.includes('read') ? 'readonly' : 'missing';
           break;
         }
       }
@@ -378,10 +425,11 @@ function LiveDemoTab({ scenario }: { scenario: ScenarioFixture }) {
         : journey.access.matchedAttribute
           ? attributes.find((a) => a.id === journey.access.matchedAttribute)?.label ?? journey.access.matchedAttribute
           : 'Attribute';
+    const deskName = activeDesk?.name ?? '—';
     const result = journey.access.canReadRow
       ? journey.access.canUpdateRow
-        ? `${matchedLabel} covers all items → Can Edit`
-        : `${matchedLabel} covers all items (Read Only) → View Only`
+        ? `Active Desk: ${deskName} (${roleName}) → ${matchedLabel} covers all items → Can Edit`
+        : `Active Desk: ${deskName} (${roleName}) → ${matchedLabel} covers all items → View Only`
       : 'No attribute covers all items → Hidden';
     return { rows, result };
   }
@@ -467,6 +515,10 @@ function LiveDemoTab({ scenario }: { scenario: ScenarioFixture }) {
     return <Empty description="No journeys in this scenario" />;
   }
 
+  const activeDesk = getActiveDesk(currentUser);
+  const activeDeskName = activeDesk?.name ?? '—';
+  const activeRoleName = activeDesk ? (getRoleById(activeDesk.roleId)?.name ?? '—') : '—';
+
   if (visible.length === 0) {
     return (
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>
@@ -475,16 +527,20 @@ function LiveDemoTab({ scenario }: { scenario: ScenarioFixture }) {
             Switch user to see different permissions
           </Typography.Text>
           <Space size={8} wrap style={{ marginTop: 8 }}>
-            {highlightUsers.map((u) => (
-              <Button
-                key={u.id}
-                type={currentUser.id === u.id ? 'primary' : 'default'}
-                icon={<UserOutlined />}
-                onClick={() => setCurrentUser(u)}
-              >
-                {u.name} ({u.role})
-              </Button>
-            ))}
+            {highlightUsers.map((u) => {
+              const desk = getActiveDesk(u);
+              const roleName = desk ? getRoleById(desk.roleId)?.name : '—';
+              return (
+                <Button
+                  key={u.id}
+                  type={currentUser.id === u.id ? 'primary' : 'default'}
+                  icon={<UserOutlined />}
+                  onClick={() => setCurrentUser(u)}
+                >
+                  {u.name} ({roleName})
+                </Button>
+              );
+            })}
           </Space>
         </div>
         <Empty description={`No journeys visible for ${currentUser.name} with current attribute permissions`} />
@@ -493,24 +549,55 @@ function LiveDemoTab({ scenario }: { scenario: ScenarioFixture }) {
   }
 
   return (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }} key={currentUser.id}>
+    <Space direction="vertical" size="middle" style={{ width: '100%' }} key={`${currentUser.id}-${currentUser.activeDeskId}`}>
       <div>
         <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
           Switch user to see different permissions
         </Typography.Text>
         <Space size={8} wrap style={{ marginTop: 8 }}>
-          {highlightUsers.map((u) => (
-            <Button
-              key={u.id}
-              type={currentUser.id === u.id ? 'primary' : 'default'}
-              icon={<UserOutlined />}
-              onClick={() => setCurrentUser(u)}
-            >
-              {u.name} ({u.role})
-            </Button>
-          ))}
+          {highlightUsers.map((u) => {
+            const desk = getActiveDesk(u);
+            const roleName = desk ? getRoleById(desk.roleId)?.name : '—';
+            return (
+              <Button
+                key={u.id}
+                type={currentUser.id === u.id ? 'primary' : 'default'}
+                icon={<UserOutlined />}
+                onClick={() => setCurrentUser(u)}
+              >
+                {u.name} ({roleName})
+              </Button>
+            );
+          })}
         </Space>
       </div>
+      {currentUser.desks.length >= 2 && (
+        <div>
+          <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
+            Active desk (switch to change context)
+          </Typography.Text>
+          <Space size={8} wrap style={{ marginTop: 8 }}>
+            {currentUser.desks.map((desk) => {
+              const role = getRoleById(desk.roleId);
+              const roleName = role?.name ?? desk.roleId;
+              const isActive = currentUser.activeDeskId === desk.id;
+              return (
+                <Button
+                  key={desk.id}
+                  type={isActive ? 'primary' : 'default'}
+                  onClick={() => setActiveDesk(desk.id)}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', height: 'auto', padding: '8px 12px' }}
+                >
+                  <span>{desk.name}</span>
+                  <Typography.Text style={{ fontSize: 11, fontWeight: 400, opacity: isActive ? 1 : 0.75 }}>
+                    {roleName}
+                  </Typography.Text>
+                </Button>
+              );
+            })}
+          </Space>
+        </div>
+      )}
 
       {scenario.number === 8 && (
         <>
@@ -602,8 +689,8 @@ function LiveDemoTab({ scenario }: { scenario: ScenarioFixture }) {
         <Alert
           type="info"
           showIcon
-          message={`${currentOutcome.userName}: ${currentOutcome.description}`}
-          description={`Visible: ${currentOutcome.canSeeJourneys} journeys · Editable: ${currentOutcome.canEditJourneys}`}
+          message={`${currentOutcome.userName} (${activeDeskName} — ${activeRoleName}): ${currentOutcome.description}`}
+          description={`Sees ${currentOutcome.canSeeJourneys} journeys, edits ${currentOutcome.canEditJourneys}`}
         />
       )}
 

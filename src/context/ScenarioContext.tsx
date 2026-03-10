@@ -16,6 +16,7 @@ export interface ScenarioState {
   currentUser: User;
   pocOnboardingScenario: POCOnboardingScenario;
   setCurrentUser: (user: User) => void;
+  setActiveDesk: (deskId: string) => void;
   addAttribute: (attr: Attribute) => void;
   updateAttribute: (attr: Attribute) => void;
   deleteAttribute: (id: string) => void;
@@ -50,11 +51,11 @@ export function ScenarioProvider({
       id: '_placeholder',
       name: 'No user',
       email: '',
-      role: '',
       legoActorType: 'branch_user',
       level: 'branch',
       branchId: fixture.branches[0]?.id,
-      attributeAssignments: [],
+      desks: [],
+      activeDeskId: '',
     } as User);
   const [currentUser, setCurrentUser] = useState<User>(initialUser);
 
@@ -68,6 +69,7 @@ export function ScenarioProvider({
     currentUser,
     pocOnboardingScenario: 'branch_specific_onboarding',
     setCurrentUser,
+    setActiveDesk: (deskId: string) => setCurrentUser((prev) => ({ ...prev, activeDeskId: deskId })),
     addAttribute: noopWithArg,
     updateAttribute: noopWithArg,
     deleteAttribute: noop,

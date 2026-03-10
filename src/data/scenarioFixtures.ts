@@ -4,8 +4,6 @@ import type {
   User,
   MasterDataItem,
   Branch,
-  CrudPreset,
-  UserAttributeAssignment,
   MasterDataTypeRestriction,
 } from '../types';
 import { MASTER_DATA_TYPE_KEYS } from '../types';
@@ -59,10 +57,6 @@ function attr(
   };
 }
 
-function toAssignments(ids: string[]): UserAttributeAssignment[] {
-  return ids.map((attributeId) => ({ attributeId, crudPreset: 'full_crud' as CrudPreset }));
-}
-
 // --- Scenario 1: One Person, Two Branches, Different Permissions ---
 const sc1Branches: Branch[] = [
   { id: 'sc1-br-south', name: 'Chennai (South)', code: 'CHE' },
@@ -97,9 +91,9 @@ const sc1Attributes: Attribute[] = [
 ];
 
 const sc1Users: User[] = [
-  { id: 'sc1-user-ramesh', name: 'Ramesh', email: 'ramesh@company.com', role: 'Regional Ops Controller', legoActorType: 'company_user', level: 'company', attributeAssignments: [{ attributeId: 'sc1-attr-south', crudPreset: 'full_crud' }, { attributeId: 'sc1-attr-west', crudPreset: 'read_only' }] },
-  { id: 'sc1-user-south', name: 'South Ops User', email: 'south@company.com', role: 'Ops', legoActorType: 'branch_user', level: 'branch', branchId: 'sc1-br-south', attributeAssignments: toAssignments(['sc1-attr-south']) },
-  { id: 'sc1-user-west', name: 'West Ops User', email: 'west@company.com', role: 'Ops', legoActorType: 'branch_user', level: 'branch', branchId: 'sc1-br-west', attributeAssignments: [{ attributeId: 'sc1-attr-west', crudPreset: 'read_only' }] },
+  { id: 'sc1-user-ramesh', name: 'Ramesh', email: 'ramesh@company.com', legoActorType: 'company_user', level: 'company', desks: [{ id: 'sc1-desk-south-ops', name: 'South Operations', roleId: 'role-ops-manager', attributeIds: ['sc1-attr-south'] }, { id: 'sc1-desk-west-monitor', name: 'West Monitoring', roleId: 'role-supervisor', attributeIds: ['sc1-attr-west'] }], activeDeskId: 'sc1-desk-south-ops' },
+  { id: 'sc1-user-south', name: 'South Ops User', email: 'south@company.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc1-br-south', desks: [{ id: 'sc1-desk-south-only', name: 'South Ops', roleId: 'role-ops-manager', attributeIds: ['sc1-attr-south'] }], activeDeskId: 'sc1-desk-south-only' },
+  { id: 'sc1-user-west', name: 'West Ops User', email: 'west@company.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc1-br-west', desks: [{ id: 'sc1-desk-west-only', name: 'West Monitor', roleId: 'role-finance', attributeIds: ['sc1-attr-west'] }], activeDeskId: 'sc1-desk-west-only' },
 ];
 
 const sc1Journeys: MockJourney[] = [
@@ -117,7 +111,7 @@ const scenario1: ScenarioFixture = {
   id: 'scenario-1',
   number: 1,
   title: 'One Person, Two Branches, Different Permissions',
-  subtitle: 'Same user has full access in one branch, view-only in another',
+  subtitle: 'Same user has full access in one branch, view-only in another. Switch desks to change context.',
   category: 'Branch Access',
   priority: 'Must Have',
   situation: 'A regional controller works across two branches with different roles — active operations in one, monitoring only in the other.',
@@ -162,8 +156,8 @@ const sc2Attributes: Attribute[] = [
 ];
 
 const sc2Users: User[] = [
-  { id: 'sc2-user-pooja', name: 'Pooja', email: 'pooja@company.com', role: 'FMCG Team', legoActorType: 'branch_user', level: 'branch', branchId: 'sc2-br-mum', attributeAssignments: toAssignments(['sc2-attr-fmcg']) },
-  { id: 'sc2-user-vikrant', name: 'Vikrant', email: 'vikrant@company.com', role: 'Cement Team', legoActorType: 'branch_user', level: 'branch', branchId: 'sc2-br-mum', attributeAssignments: toAssignments(['sc2-attr-cement']) },
+  { id: 'sc2-user-pooja', name: 'Pooja', email: 'pooja@company.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc2-br-mum', desks: [{ id: 'sc2-desk-fmcg', name: 'FMCG Ops', roleId: 'role-ops-manager', attributeIds: ['sc2-attr-fmcg'] }], activeDeskId: 'sc2-desk-fmcg' },
+  { id: 'sc2-user-vikrant', name: 'Vikrant', email: 'vikrant@company.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc2-br-mum', desks: [{ id: 'sc2-desk-cement', name: 'Cement Ops', roleId: 'role-ops-manager', attributeIds: ['sc2-attr-cement'] }], activeDeskId: 'sc2-desk-cement' },
 ];
 
 const sc2Journeys: MockJourney[] = [
@@ -240,9 +234,9 @@ const sc25Attributes: Attribute[] = [
 ];
 
 const sc25Users: User[] = [
-  { id: 'sc25-user-nsk-ops', name: 'Amit (Nashik Distillery Ops)', email: 'amit@diageo.com', role: 'Distillery Operations', legoActorType: 'branch_user', level: 'branch', branchId: 'sc25-br-nashik', attributeAssignments: toAssignments(['sc25-attr-nsk-transfer', 'sc25-attr-nsk-ops']) },
-  { id: 'sc25-user-aur-ops', name: 'Sneha (Aurangabad Warehouse Ops)', email: 'sneha@diageo.com', role: 'Warehouse Operations', legoActorType: 'branch_user', level: 'branch', branchId: 'sc25-br-aurangabad', attributeAssignments: [{ attributeId: 'sc25-attr-aur-ops', crudPreset: 'custom', customPermissions: ['read', 'update'] }] },
-  { id: 'sc25-user-aur-mgr', name: 'Deepak (Aurangabad Warehouse Manager)', email: 'deepak@diageo.com', role: 'Warehouse Manager', legoActorType: 'branch_user', level: 'branch', branchId: 'sc25-br-aurangabad', attributeAssignments: [{ attributeId: 'sc25-attr-aur-ops', crudPreset: 'custom', customPermissions: ['read', 'update'] }] },
+  { id: 'sc25-user-nsk-ops', name: 'Amit (Nashik Distillery Ops)', email: 'amit@diageo.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc25-br-nashik', desks: [{ id: 'sc25-desk-nsk-transfer', name: 'Nashik Ops + Transfer', roleId: 'role-ops-manager', attributeIds: ['sc25-attr-nsk-transfer', 'sc25-attr-nsk-ops'] }], activeDeskId: 'sc25-desk-nsk-transfer' },
+  { id: 'sc25-user-aur-ops', name: 'Sneha (Aurangabad Warehouse Ops)', email: 'sneha@diageo.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc25-br-aurangabad', desks: [{ id: 'sc25-desk-aur-ops', name: 'Aurangabad Warehouse', roleId: 'role-supervisor', attributeIds: ['sc25-attr-aur-ops'] }], activeDeskId: 'sc25-desk-aur-ops' },
+  { id: 'sc25-user-aur-mgr', name: 'Deepak (Aurangabad Warehouse Manager)', email: 'deepak@diageo.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc25-br-aurangabad', desks: [{ id: 'sc25-desk-aur-mgr', name: 'Aurangabad Warehouse', roleId: 'role-supervisor', attributeIds: ['sc25-attr-aur-ops'] }], activeDeskId: 'sc25-desk-aur-mgr' },
 ];
 
 const sc25Journeys: MockJourney[] = [
@@ -322,11 +316,11 @@ const sc3Attributes: Attribute[] = [
 ];
 
 const sc3Users: User[] = [
-  { id: 'sc3-user-sharma', name: 'Mr. Sharma', email: 'sharma@company.com', role: 'Business Head', legoActorType: 'company_user', level: 'company', attributeAssignments: [{ attributeId: 'sc3-attr-all', crudPreset: 'read_only' }] },
-  { id: 'sc3-user-priya', name: 'Ms. Priya', email: 'priya@company.com', role: 'Regional Head North', legoActorType: 'branch_user', level: 'branch', branchId: 'sc3-br-spd', attributeAssignments: toAssignments(['sc3-attr-north']) },
-  { id: 'sc3-user-south', name: 'South Regional Head', email: 'south@company.com', role: 'Regional Head South', legoActorType: 'branch_user', level: 'branch', branchId: 'sc3-br-spd', attributeAssignments: toAssignments(['sc3-attr-south']) },
-  { id: 'sc3-user-east', name: 'East Regional Head', email: 'east@company.com', role: 'Regional Head East', legoActorType: 'branch_user', level: 'branch', branchId: 'sc3-br-spd', attributeAssignments: toAssignments(['sc3-attr-east']) },
-  { id: 'sc3-user-west', name: 'West Regional Head', email: 'west@company.com', role: 'Regional Head West', legoActorType: 'branch_user', level: 'branch', branchId: 'sc3-br-spd', attributeAssignments: toAssignments(['sc3-attr-west']) },
+  { id: 'sc3-user-sharma', name: 'Mr. Sharma', email: 'sharma@company.com', legoActorType: 'company_user', level: 'company', desks: [{ id: 'sc3-desk-all-view', name: 'Business Head View', roleId: 'role-finance', attributeIds: ['sc3-attr-all'] }], activeDeskId: 'sc3-desk-all-view' },
+  { id: 'sc3-user-priya', name: 'Ms. Priya', email: 'priya@company.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc3-br-spd', desks: [{ id: 'sc3-desk-north', name: 'North Regional', roleId: 'role-ops-manager', attributeIds: ['sc3-attr-north'] }], activeDeskId: 'sc3-desk-north' },
+  { id: 'sc3-user-south', name: 'South Regional Head', email: 'south@company.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc3-br-spd', desks: [{ id: 'sc3-desk-south', name: 'South Regional', roleId: 'role-ops-manager', attributeIds: ['sc3-attr-south'] }], activeDeskId: 'sc3-desk-south' },
+  { id: 'sc3-user-east', name: 'East Regional Head', email: 'east@company.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc3-br-spd', desks: [{ id: 'sc3-desk-east', name: 'East Regional', roleId: 'role-ops-manager', attributeIds: ['sc3-attr-east'] }], activeDeskId: 'sc3-desk-east' },
+  { id: 'sc3-user-west', name: 'West Regional Head', email: 'west@company.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc3-br-spd', desks: [{ id: 'sc3-desk-west', name: 'West Regional', roleId: 'role-ops-manager', attributeIds: ['sc3-attr-west'] }], activeDeskId: 'sc3-desk-west' },
 ];
 
 const sc3Journeys: MockJourney[] = [
@@ -402,10 +396,10 @@ const sc4Attributes: Attribute[] = [
 ];
 
 const sc4Users: User[] = [
-  { id: 'sc4-user-vikram', name: 'Mr. Vikram', email: 'vikram@company.com', role: 'North Regional Director', legoActorType: 'company_user', level: 'company', attributeAssignments: toAssignments(['sc4-attr-north']) },
-  { id: 'sc4-user-spd', name: 'SPD Ops', email: 'spd@company.com', role: 'Ops', legoActorType: 'branch_user', level: 'branch', branchId: 'sc4-br-spd', attributeAssignments: toAssignments(['sc4-attr-spd']) },
-  { id: 'sc4-user-tmcv', name: 'TMCV Ops', email: 'tmcv@company.com', role: 'Ops', legoActorType: 'branch_user', level: 'branch', branchId: 'sc4-br-tmcv', attributeAssignments: toAssignments(['sc4-attr-tmcv']) },
-  { id: 'sc4-user-def', name: 'DEF Ops', email: 'def@company.com', role: 'Ops', legoActorType: 'branch_user', level: 'branch', branchId: 'sc4-br-def', attributeAssignments: toAssignments(['sc4-attr-def']) },
+  { id: 'sc4-user-vikram', name: 'Mr. Vikram', email: 'vikram@company.com', legoActorType: 'company_user', level: 'company', desks: [{ id: 'sc4-desk-north', name: 'North Regional', roleId: 'role-ops-manager', attributeIds: ['sc4-attr-north'] }], activeDeskId: 'sc4-desk-north' },
+  { id: 'sc4-user-spd', name: 'SPD Ops', email: 'spd@company.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc4-br-spd', desks: [{ id: 'sc4-desk-spd', name: 'SPD Ops', roleId: 'role-ops-manager', attributeIds: ['sc4-attr-spd'] }], activeDeskId: 'sc4-desk-spd' },
+  { id: 'sc4-user-tmcv', name: 'TMCV Ops', email: 'tmcv@company.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc4-br-tmcv', desks: [{ id: 'sc4-desk-tmcv', name: 'TMCV Ops', roleId: 'role-ops-manager', attributeIds: ['sc4-attr-tmcv'] }], activeDeskId: 'sc4-desk-tmcv' },
+  { id: 'sc4-user-def', name: 'DEF Ops', email: 'def@company.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc4-br-def', desks: [{ id: 'sc4-desk-def', name: 'DEF Ops', roleId: 'role-ops-manager', attributeIds: ['sc4-attr-def'] }], activeDeskId: 'sc4-desk-def' },
 ];
 
 const sc4Journeys: MockJourney[] = [
@@ -490,10 +484,10 @@ const sc5Attributes: Attribute[] = [
 ];
 
 const sc5Users: User[] = [
-  { id: 'sc5-user-vedanta', name: 'Vedanta Dispatch', email: 'vedanta@supplier.com', role: 'Supplier', legoActorType: 'company_user', level: 'company', attributeAssignments: toAssignments(['sc5-attr-vedanta']) },
-  { id: 'sc5-user-pune', name: 'Rajesh (Pune Plant Ops)', email: 'rajesh.pune@diageo.com', role: 'Plant Operations', legoActorType: 'branch_user', level: 'branch', branchId: 'sc5-br-pune', attributeAssignments: toAssignments(['sc5-attr-pune']) },
-  { id: 'sc5-user-chennai', name: 'Karthik (Chennai Plant Ops)', email: 'karthik.chennai@diageo.com', role: 'Plant Operations', legoActorType: 'branch_user', level: 'branch', branchId: 'sc5-br-chennai', attributeAssignments: toAssignments(['sc5-attr-chennai']) },
-  { id: 'sc5-user-hyd', name: 'Priya (Hyderabad Plant Ops)', email: 'priya.hyd@diageo.com', role: 'Plant Operations', legoActorType: 'branch_user', level: 'branch', branchId: 'sc5-br-hyd', attributeAssignments: toAssignments(['sc5-attr-hyd']) },
+  { id: 'sc5-user-vedanta', name: 'Vedanta Dispatch', email: 'vedanta@supplier.com', legoActorType: 'company_user', level: 'company', desks: [{ id: 'sc5-desk-vedanta', name: 'Supplier Access', roleId: 'role-supplier', attributeIds: ['sc5-attr-vedanta'] }], activeDeskId: 'sc5-desk-vedanta' },
+  { id: 'sc5-user-pune', name: 'Rajesh (Pune Plant Ops)', email: 'rajesh.pune@diageo.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc5-br-pune', desks: [{ id: 'sc5-desk-pune', name: 'Pune Plant Ops', roleId: 'role-ops-manager', attributeIds: ['sc5-attr-pune'] }], activeDeskId: 'sc5-desk-pune' },
+  { id: 'sc5-user-chennai', name: 'Karthik (Chennai Plant Ops)', email: 'karthik.chennai@diageo.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc5-br-chennai', desks: [{ id: 'sc5-desk-chennai', name: 'Chennai Plant Ops', roleId: 'role-ops-manager', attributeIds: ['sc5-attr-chennai'] }], activeDeskId: 'sc5-desk-chennai' },
+  { id: 'sc5-user-hyd', name: 'Priya (Hyderabad Plant Ops)', email: 'priya.hyd@diageo.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc5-br-hyd', desks: [{ id: 'sc5-desk-hyd', name: 'Hyderabad Plant Ops', roleId: 'role-ops-manager', attributeIds: ['sc5-attr-hyd'] }], activeDeskId: 'sc5-desk-hyd' },
 ];
 
 const sc5Journeys: MockJourney[] = [
@@ -567,8 +561,8 @@ const sc6Attributes: Attribute[] = [
 ];
 
 const sc6Users: User[] = [
-  { id: 'sc6-user-karthik', name: 'Karthik', email: 'karthik@company.com', role: 'Ops Chennai', legoActorType: 'branch_user', level: 'branch', branchId: 'sc6-br-chn', attributeAssignments: toAssignments(['sc6-attr-ops']) },
-  { id: 'sc6-user-anita', name: 'Anita', email: 'anita@company.com', role: 'Finance Team', legoActorType: 'company_user', level: 'company', attributeAssignments: [{ attributeId: 'sc6-attr-finance', crudPreset: 'read_only' }] },
+  { id: 'sc6-user-karthik', name: 'Karthik', email: 'karthik@company.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc6-br-chn', desks: [{ id: 'sc6-desk-ops', name: 'Chennai Ops', roleId: 'role-ops-manager', attributeIds: ['sc6-attr-ops'] }], activeDeskId: 'sc6-desk-ops' },
+  { id: 'sc6-user-anita', name: 'Anita', email: 'anita@company.com', legoActorType: 'company_user', level: 'company', desks: [{ id: 'sc6-desk-finance', name: 'Finance Review', roleId: 'role-finance', attributeIds: ['sc6-attr-finance'] }], activeDeskId: 'sc6-desk-finance' },
 ];
 
 const sc6Journeys: MockJourney[] = [
@@ -642,10 +636,10 @@ const sc7Attributes: Attribute[] = [
 ];
 
 const sc7Users: User[] = [
-  { id: 'sc7-user-tmcv', name: 'Vikram (TMCV Head)', email: 'vikram@company.com', role: 'TMCV Head', legoActorType: 'branch_user', level: 'branch', branchId: 'sc7-br-tmcv', attributeAssignments: [{ attributeId: 'sc7-attr-tmcv', crudPreset: 'full_crud' }] },
-  { id: 'sc7-user-spd', name: 'Priya (SPD Head)', email: 'priya@company.com', role: 'SPD Head', legoActorType: 'branch_user', level: 'branch', branchId: 'sc7-br-spd', attributeAssignments: [{ attributeId: 'sc7-attr-spd', crudPreset: 'full_crud' }] },
-  { id: 'sc7-user-def', name: 'Col. Sharma (DEF Head)', email: 'sharma@company.com', role: 'DEF Head', legoActorType: 'branch_user', level: 'branch', branchId: 'sc7-br-def', attributeAssignments: [{ attributeId: 'sc7-attr-def', crudPreset: 'read_only' }] },
-  { id: 'sc7-user-national', name: 'Rajesh (National Ops Head)', email: 'rajesh@company.com', role: 'National Ops Head', legoActorType: 'company_user', level: 'company', attributeAssignments: [{ attributeId: 'sc7-attr-all', crudPreset: 'read_only' }] },
+  { id: 'sc7-user-tmcv', name: 'Vikram (TMCV Head)', email: 'vikram@company.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc7-br-tmcv', desks: [{ id: 'sc7-desk-tmcv', name: 'TMCV Segment', roleId: 'role-ops-manager', attributeIds: ['sc7-attr-tmcv'] }], activeDeskId: 'sc7-desk-tmcv' },
+  { id: 'sc7-user-spd', name: 'Priya (SPD Head)', email: 'priya@company.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc7-br-spd', desks: [{ id: 'sc7-desk-spd', name: 'SPD Segment', roleId: 'role-ops-manager', attributeIds: ['sc7-attr-spd'] }], activeDeskId: 'sc7-desk-spd' },
+  { id: 'sc7-user-def', name: 'Col. Sharma (DEF Head)', email: 'sharma@company.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc7-br-def', desks: [{ id: 'sc7-desk-def', name: 'DEF Segment', roleId: 'role-finance', attributeIds: ['sc7-attr-def'] }], activeDeskId: 'sc7-desk-def' },
+  { id: 'sc7-user-national', name: 'Rajesh (National Ops Head)', email: 'rajesh@company.com', legoActorType: 'company_user', level: 'company', desks: [{ id: 'sc7-desk-national', name: 'All Segments', roleId: 'role-finance', attributeIds: ['sc7-attr-all'] }], activeDeskId: 'sc7-desk-national' },
 ];
 
 const sc7Journeys: MockJourney[] = [
@@ -709,8 +703,8 @@ const sc8Attributes: Attribute[] = [
 ];
 
 const sc8Users: User[] = [
-  { id: 'sc8-user-sunil', name: 'Sunil', email: 'sunil@company.com', role: 'New Joiner', legoActorType: 'branch_user', level: 'branch', branchId: 'sc8-br-pune', attributeAssignments: [], defaultBranchAccess: true },
-  { id: 'sc8-user-ops', name: 'Pune Ops User', email: 'pune-ops@company.com', role: 'Pune Ops', legoActorType: 'branch_user', level: 'branch', branchId: 'sc8-br-pune', attributeAssignments: toAssignments(['sc8-attr-fmcg']) },
+  { id: 'sc8-user-sunil', name: 'Sunil', email: 'sunil@company.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc8-br-pune', desks: [], activeDeskId: '', defaultBranchAccess: true },
+  { id: 'sc8-user-ops', name: 'Pune Ops User', email: 'pune-ops@company.com', legoActorType: 'branch_user', level: 'branch', branchId: 'sc8-br-pune', desks: [{ id: 'sc8-desk-fmcg', name: 'Pune FMCG', roleId: 'role-ops-manager', attributeIds: ['sc8-attr-fmcg'] }], activeDeskId: 'sc8-desk-fmcg' },
 ];
 
 const sc8Journeys: MockJourney[] = [
@@ -769,7 +763,7 @@ const sc16Attributes: Attribute[] = [
 ];
 
 const sc16Users: User[] = [
-  { id: 'sc16-user-anil', name: 'Mr. Anil', email: 'anil@company.com', role: 'Regional Ops', legoActorType: 'company_user', level: 'company', attributeAssignments: [{ attributeId: 'sc16-attr-north', crudPreset: 'full_crud' }, { attributeId: 'sc16-attr-south', crudPreset: 'read_only' }] },
+  { id: 'sc16-user-anil', name: 'Mr. Anil', email: 'anil@company.com', legoActorType: 'company_user', level: 'company', desks: [{ id: 'sc16-desk-north', name: 'North Ops', roleId: 'role-ops-manager', attributeIds: ['sc16-attr-north'] }, { id: 'sc16-desk-south', name: 'South Monitor', roleId: 'role-finance', attributeIds: ['sc16-attr-south'] }], activeDeskId: 'sc16-desk-north' },
 ];
 
 const sc16Journeys: MockJourney[] = [
@@ -789,7 +783,7 @@ const scenario16: ScenarioFixture = {
   id: 'scenario-10',
   number: 10,
   title: 'Bulk Actions Across Mixed Access Boundaries',
-  subtitle: 'User sees two regions: full access in one, view-only in the other',
+  subtitle: 'User sees two regions: full access in one, view-only in the other. Use desk switcher in demo.',
   category: 'Bulk Operations',
   priority: 'Supported',
   situation: 'User has full access to one region and read-only to another. Bulk actions would update only the rows they can edit.',
@@ -838,7 +832,7 @@ const sc18Attributes: Attribute[] = [
 ];
 
 const sc18Users: User[] = [
-  { id: 'sc18-user-lakshmi', name: 'Ms. Lakshmi', email: 'lakshmi@company.com', role: 'North Head + Business View', legoActorType: 'company_user', level: 'company', attributeAssignments: [{ attributeId: 'sc18-attr-north', crudPreset: 'full_crud' }, { attributeId: 'sc18-attr-all', crudPreset: 'read_only' }] },
+  { id: 'sc18-user-lakshmi', name: 'Ms. Lakshmi', email: 'lakshmi@company.com', legoActorType: 'company_user', level: 'company', desks: [{ id: 'sc18-desk-north', name: 'North Ops', roleId: 'role-ops-manager', attributeIds: ['sc18-attr-north'] }, { id: 'sc18-desk-all', name: 'SPD Monitor', roleId: 'role-finance', attributeIds: ['sc18-attr-all'] }], activeDeskId: 'sc18-desk-north' },
 ];
 
 const sc18Journeys: MockJourney[] = [
@@ -856,7 +850,7 @@ const scenario18: ScenarioFixture = {
   id: 'scenario-11',
   number: 11,
   title: 'Conflicting Access Rules — Most Permissive Wins',
-  subtitle: 'User has two roles: full access in one region, view-only everywhere',
+  subtitle: 'User has two roles: full access in one region, view-only everywhere. Switch desks to toggle.',
   category: 'Conflict Resolution',
   priority: 'Must Have',
   situation: 'User has two tags: one gives full CRUD on North, one gives view-only on all. Permissions are unioned — most permissive wins.',

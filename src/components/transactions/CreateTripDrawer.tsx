@@ -9,7 +9,7 @@ import {
 import { useAppContext } from '../../context/AppContext';
 import { MASTER_DATA_ITEMS } from '../../data/mockData';
 import type { CrudPermission } from '../../types';
-import { PRESET_PERMISSIONS } from '../../types';
+import { getActiveDesk, getRolePermissions } from '../../types';
 import type { MockJourney } from '../../data/mockData';
 import { doesAttributeCoverItem } from './transactionAccess';
 
@@ -43,24 +43,21 @@ export default function CreateTripDrawer({ open, onClose }: Props) {
 
   const userPermMap = useMemo(() => {
     const map = new Map<string, CrudPermission[]>();
+    const activeDesk = getActiveDesk(currentUser);
+    if (!activeDesk) return map;
+    const rolePerms = getRolePermissions(activeDesk.roleId);
+    const deskAttrs = attributes.filter((a) => activeDesk.attributeIds.includes(a.id));
+
     for (const item of MASTER_DATA_ITEMS) {
-      const perms: CrudPermission[] = [];
-      for (const assignment of currentUser.attributeAssignments) {
-        const attr = attributes.find((a) => a.id === assignment.attributeId);
-        if (!attr || !doesAttributeCoverItem(attr, item.id, itemById)) continue;
-        const p =
-          assignment.crudPreset === 'custom'
-            ? assignment.customPermissions ?? []
-            : PRESET_PERMISSIONS[assignment.crudPreset];
-        for (const perm of p) if (!perms.includes(perm)) perms.push(perm);
+      let covered = false;
+      for (const attr of deskAttrs) {
+        if (doesAttributeCoverItem(attr, item.id, itemById)) { covered = true; break; }
       }
-      if (currentUser.defaultBranchAccess && currentUser.branchId && (item.branch === currentUser.branchId || item.onboardedAt === 'company')) {
-        if (!perms.includes('create')) perms.push('create');
-        if (!perms.includes('read')) perms.push('read');
-        if (!perms.includes('update')) perms.push('update');
-        if (!perms.includes('delete')) perms.push('delete');
+      if (covered) {
+        map.set(item.id, rolePerms);
+      } else if (currentUser.defaultBranchAccess && currentUser.branchId && (item.branch === currentUser.branchId || item.onboardedAt === 'company')) {
+        map.set(item.id, ['create', 'read', 'update', 'delete']);
       }
-      if (perms.length > 0) map.set(item.id, perms);
     }
     return map;
   }, [currentUser, attributes, itemById]);
@@ -115,6 +112,7 @@ export default function CreateTripDrawer({ open, onClose }: Props) {
       const routeName = routeItem?.name ?? 'Unknown Route';
       const [from = 'Origin', to = 'Destination'] = routeName.split('→').map((part) => part.trim());
       const statuses: MockJourney['slaStatus'][] = ['On Time', 'At Risk', 'Delayed'];
+      const activeDesk = getActiveDesk(currentUser);
       const newJourney: MockJourney = {
         id: `JRN-${Math.random().toString(16).slice(2, 10)}`,
         branchId: routeItem?.branch ?? currentUser.branchId ?? 'br-1',
@@ -133,7 +131,7 @@ export default function CreateTripDrawer({ open, onClose }: Props) {
         eta: '06:30 pm, 24 Feb',
         alert: null,
         alertTime: null,
-        attribute: currentUser.attributeAssignments[0]?.attributeId ?? attributes[0]?.id ?? 'unscoped',
+        attribute: activeDesk?.attributeIds[0] ?? attributes[0]?.id ?? 'unscoped',
       };
       addJourney(newJourney);
       onClose();
@@ -141,12 +139,14 @@ export default function CreateTripDrawer({ open, onClose }: Props) {
     });
   };
 
+  const activeDesk = getActiveDesk(currentUser);
+
   return (
     <Drawer
       title={
         <Space>
           <span>Create Trip</span>
-          <Tooltip title="Transactions can only be created using master data available to the user within their create scope. Items outside the user's attribute are visible but not selectable.">
+          <Tooltip title="Transactions can only be created using master data available to the user within their create scope.">
             <InfoCircleOutlined style={{ color: '#1677ff', fontSize: 14, cursor: 'pointer' }} />
           </Tooltip>
         </Space>
@@ -164,16 +164,16 @@ export default function CreateTripDrawer({ open, onClose }: Props) {
       }
     >
       <Alert
-        message="Only master data within your attribute's create scope is selectable. Restricted items are shown for reference."
+        message="Only master data within your active desk's scope is selectable."
         type="info"
         showIcon
         icon={<InfoCircleOutlined />}
         style={{ marginBottom: 20, fontSize: 12 }}
       />
 
-      {currentUser.attributeAssignments.length === 0 && (
+      {!activeDesk && (
         <Alert
-          message="No attributes assigned to this user. All items will show as No Access."
+          message="No active desk. All items will show as No Access."
           type="warning"
           showIcon
           style={{ marginBottom: 16 }}
@@ -181,7 +181,7 @@ export default function CreateTripDrawer({ open, onClose }: Props) {
       )}
       {currentUser.defaultBranchAccess && (
         <Alert
-          message="Default branch fallback access is active (full CRUD) because no branch-admin attributes are assigned yet."
+          message="Default branch fallback access is active (full CRUD)."
           type="success"
           showIcon
           style={{ marginBottom: 16 }}
@@ -220,7 +220,6 @@ export default function CreateTripDrawer({ open, onClose }: Props) {
                     value: opt.id,
                     label: opt.name,
                     disabled: opt.access !== 'create',
-                    className: opt.access !== 'create' ? 'abac-disabled-option' : '',
                   }))}
                 optionRender={(option) => {
                   const opt = options.find((o) => o.id === option.value);

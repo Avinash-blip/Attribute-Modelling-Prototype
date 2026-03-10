@@ -1,4 +1,4 @@
-import type { Branch, MasterDataItem, FieldItem, Attribute, User, MasterDataTypeRestriction } from '../types';
+import type { Branch, MasterDataItem, FieldItem, Attribute, User, MasterDataTypeRestriction, Desk } from '../types';
 import { MASTER_DATA_TYPE_KEYS } from '../types';
 
 export const BRANCHES: Branch[] = [
@@ -230,13 +230,13 @@ export const DEFAULT_ATTRIBUTES: Attribute[] = [
 ];
 
 export const DEFAULT_USERS: User[] = [
-  { id: 'usr-1', name: 'Rajesh Nair', email: 'rajesh.nair@company.com', role: 'Branch Admin', legoActorType: 'branch_admin', level: 'branch', branchId: 'br-1', attributeAssignments: [{ attributeId: 'attr-1', crudPreset: 'full_crud' }] },
-  { id: 'usr-2', name: 'Priya Sharma', email: 'priya.sharma@company.com', role: 'Branch User', legoActorType: 'branch_user', level: 'branch', branchId: 'br-2', attributeAssignments: [{ attributeId: 'attr-1', crudPreset: 'full_crud' }] },
-  { id: 'usr-3', name: 'Deepak Gupta', email: 'deepak.gupta@company.com', role: 'Company User', legoActorType: 'company_user', level: 'company', attributeAssignments: [{ attributeId: 'attr-2', crudPreset: 'full_crud' }] },
-  { id: 'usr-4', name: 'Kavitha Rajan', email: 'kavitha.rajan@company.com', role: 'Branch Admin', legoActorType: 'branch_admin', level: 'branch', branchId: 'br-3', attributeAssignments: [{ attributeId: 'attr-3', crudPreset: 'full_crud' }] },
-  { id: 'usr-5', name: 'Sunil Reddy', email: 'sunil.reddy@company.com', role: 'Branch User', legoActorType: 'branch_user', level: 'branch', branchId: 'br-4', attributeAssignments: [{ attributeId: 'attr-3', crudPreset: 'full_crud' }] },
-  { id: 'usr-6', name: 'Anita Desai', email: 'anita.desai@company.com', role: 'Company Admin', legoActorType: 'company_admin', level: 'company', attributeAssignments: [{ attributeId: 'attr-4', crudPreset: 'full_crud' }] },
-  { id: 'usr-7', name: 'Vikram Mehta', email: 'vikram.mehta@company.com', role: 'Company Admin', legoActorType: 'company_admin', level: 'company', attributeAssignments: [] },
+  { id: 'usr-1', name: 'Rajesh Nair', email: 'rajesh.nair@company.com', legoActorType: 'branch_admin', level: 'branch', branchId: 'br-1', desks: [{ id: 'desk-1', name: 'Mumbai Ops', roleId: 'role-admin', attributeIds: ['attr-1'] }], activeDeskId: 'desk-1' },
+  { id: 'usr-2', name: 'Priya Sharma', email: 'priya.sharma@company.com', legoActorType: 'branch_user', level: 'branch', branchId: 'br-2', desks: [{ id: 'desk-2', name: 'Delhi Ops', roleId: 'role-ops-manager', attributeIds: ['attr-1'] }], activeDeskId: 'desk-2' },
+  { id: 'usr-3', name: 'Deepak Gupta', email: 'deepak.gupta@company.com', legoActorType: 'company_user', level: 'company', desks: [{ id: 'desk-3', name: 'Company Operations', roleId: 'role-ops-manager', attributeIds: ['attr-2'] }], activeDeskId: 'desk-3' },
+  { id: 'usr-4', name: 'Kavitha Rajan', email: 'kavitha.rajan@company.com', legoActorType: 'branch_admin', level: 'branch', branchId: 'br-3', desks: [{ id: 'desk-4', name: 'Chennai Ops', roleId: 'role-admin', attributeIds: ['attr-3'] }], activeDeskId: 'desk-4' },
+  { id: 'usr-5', name: 'Sunil Reddy', email: 'sunil.reddy@company.com', legoActorType: 'branch_user', level: 'branch', branchId: 'br-4', desks: [{ id: 'desk-5', name: 'Bengaluru Ops', roleId: 'role-ops-manager', attributeIds: ['attr-3'] }], activeDeskId: 'desk-5' },
+  { id: 'usr-6', name: 'Anita Desai', email: 'anita.desai@company.com', legoActorType: 'company_admin', level: 'company', desks: [{ id: 'desk-6', name: 'Company Admin', roleId: 'role-admin', attributeIds: ['attr-4'] }], activeDeskId: 'desk-6' },
+  { id: 'usr-7', name: 'Vikram Mehta', email: 'vikram.mehta@company.com', legoActorType: 'company_admin', level: 'company', desks: [], activeDeskId: '' },
 ];
 
 export const MOCK_DASHBOARD_DATA = {

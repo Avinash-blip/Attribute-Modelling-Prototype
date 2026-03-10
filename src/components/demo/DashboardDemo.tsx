@@ -2,14 +2,17 @@ import { useState, useMemo } from 'react';
 import { Card, Select, Table, Tag, Space, Typography, Statistic, Row, Col, Alert } from 'antd';
 import { useAppContext } from '../../context/AppContext';
 import { MOCK_DASHBOARD_DATA } from '../../data/mockData';
+import { getActiveDesk } from '../../types';
 
 export default function DashboardDemo() {
   const { currentUser, attributes } = useAppContext();
+  const activeDesk = getActiveDesk(currentUser);
+  const deskAttrIds = activeDesk?.attributeIds ?? [];
   const [filterAttrId, setFilterAttrId] = useState<string | null>(() =>
-    currentUser.attributeAssignments.length === 1 ? currentUser.attributeAssignments[0].attributeId : null
+    deskAttrIds.length === 1 ? deskAttrIds[0] : null
   );
 
-  const autoApplied = currentUser.attributeAssignments.length === 1;
+  const autoApplied = deskAttrIds.length === 1;
   const selectedAttr = filterAttrId ? attributes.find((a) => a.id === filterAttrId) : null;
 
   const rows = useMemo(() => {

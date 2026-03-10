@@ -38,7 +38,7 @@ const EDGE_CASES = [
   },
   {
     title: 'No attribute covers the transaction',
-    what: "Transaction items don't fully match any of the user's attributes.",
+    what: "Transaction items don't fully match any of the active desk's attributes.",
     how: [
       'Transaction is invisible.',
       'Partial matches do not count.',
@@ -48,26 +48,26 @@ const EDGE_CASES = [
       'FMCG user shares routes/vehicles with Cement team but Cement materials not in their attribute. Cement journey invisible.',
   },
   {
-    title: 'User has no attributes assigned',
-    what: 'New user, no attributes mapped yet.',
+    title: 'User has no desks',
+    what: 'New user, no desks assigned yet.',
     how: [
       'No access to any data.',
       'Empty state: "No access configured. Please contact your administrator."',
     ],
     example:
-      'Sunil joins Pune branch, account created but no attributes assigned. Sees empty dashboard until admin configures access.',
+      'Sunil joins Pune branch, account created but no desks assigned. Sees empty dashboard until admin configures access.',
     configurable: 'Tenant can choose no access (default) or full branch access.',
   },
   {
-    title: 'CRUD set during user-to-attribute mapping',
-    what: 'Same attribute assigned to different users with different CRUD.',
+    title: 'Desk switching changes context and permissions',
+    what: 'User with multiple desks switches active desk to change which data they see and whether they can edit.',
     how: [
-      'CRUD is set per-user per-attribute at assignment time.',
-      'Attribute defines WHAT data, CRUD assignment defines WHAT actions.',
-      'No attribute-level default.',
+      'Each desk has a role (CRUD) and a set of attributes (data scope).',
+      'Active desk determines current permissions; switching desk recalculates journey access.',
+      'Same user can have full CRUD on one desk and read-only on another.',
     ],
     example:
-      'Chennai Ops attribute → Karthik gets Full CRUD, Anita gets Read Only, Deepak gets Read+Update. Same data visibility, different action permissions.',
+      'Ramesh has South Ops (Operations Manager) and West Monitor (Supervisor). Switch to South Ops to edit South journeys; switch to West Monitor to view West only.',
   },
   {
     title: 'Cross-branch attribute with selective items',

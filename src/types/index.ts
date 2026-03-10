@@ -20,16 +20,7 @@ export type LegoActorType =
 
 export type CrudPermission = 'create' | 'read' | 'update' | 'delete';
 
-export type CrudPreset = 'full_crud' | 'read_only' | 'create_read' | 'custom';
-
-export const PRESET_PERMISSIONS: Record<CrudPreset, CrudPermission[]> = {
-  full_crud: ['create', 'read', 'update', 'delete'],
-  read_only: ['read'],
-  create_read: ['create', 'read'],
-  custom: [],
-};
-
-export const ALL_CRUD: CrudPermission[] = PRESET_PERMISSIONS.full_crud;
+export const ALL_CRUD: CrudPermission[] = ['create', 'read', 'update', 'delete'];
 
 export interface MasterDataTypeRestriction {
   mode: 'all' | 'specific' | 'none';
@@ -40,7 +31,6 @@ export interface MasterDataMapping {
   onboardingType: 'company' | 'branch';
   selectedBranches: string[] | 'ALL';
   typeRestrictions: Record<string, MasterDataTypeRestriction>;
-  // Keys: 'routes', 'route_master', 'location_master', 'material_master', 'vehicle_type_master', 'driver_master', 'transporter_master'
 }
 
 export function getAttributeItemIds(mapping: MasterDataMapping): string[] {
@@ -62,12 +52,6 @@ export const MASTER_DATA_TYPE_KEYS = [
   'driver_master',
   'transporter_master',
 ] as const;
-
-export interface UserAttributeAssignment {
-  attributeId: string;
-  crudPreset: CrudPreset; // REQUIRED — always set during mapping
-  customPermissions?: CrudPermission[]; // only when crudPreset === 'custom'
-}
 
 export interface MasterDataItem {
   id: string;
@@ -94,14 +78,50 @@ export interface Branch {
   code: string;
 }
 
+// --- Role Definitions ---
+
+export interface RoleDefinition {
+  id: string;
+  name: string;
+  description: string;
+  permissions: CrudPermission[];
+}
+
+export const PREDEFINED_ROLES: RoleDefinition[] = [
+  { id: 'role-admin', name: 'Admin', description: 'Full access to all operations', permissions: ['create', 'read', 'update', 'delete'] },
+  { id: 'role-ops-manager', name: 'Operations Manager', description: 'Full CRUD for day-to-day operations', permissions: ['create', 'read', 'update', 'delete'] },
+  { id: 'role-supervisor', name: 'Supervisor', description: 'Can view and update but not create or delete', permissions: ['read', 'update'] },
+  { id: 'role-finance', name: 'Finance', description: 'Read-only access for auditing and reporting', permissions: ['read'] },
+  { id: 'role-supplier', name: 'Supplier', description: 'Can create and view transactions', permissions: ['create', 'read'] },
+];
+
+export const getRoleById = (roleId: string): RoleDefinition | undefined =>
+  PREDEFINED_ROLES.find((r) => r.id === roleId);
+
+export const getRolePermissions = (roleId: string): CrudPermission[] =>
+  getRoleById(roleId)?.permissions ?? [];
+
+// --- Desk Model ---
+
+export interface Desk {
+  id: string;
+  name: string;
+  description?: string;
+  roleId: string;
+  attributeIds: string[];
+}
+
 export interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
   legoActorType: LegoActorType;
   level: 'company' | 'branch';
   branchId?: string;
-  attributeAssignments: UserAttributeAssignment[];
+  desks: Desk[];
+  activeDeskId: string;
   defaultBranchAccess?: boolean;
 }
+
+export const getActiveDesk = (user: User): Desk | undefined =>
+  user.desks.find((d) => d.id === user.activeDeskId);

@@ -28,10 +28,11 @@ export default function JourneyListPage() {
 
   const isCentralScenario = pocOnboardingScenario === 'central_onboarding';
 
-  const assignedAttributes = useMemo(
-    () => attributes.filter((a) => currentUser.attributeAssignments.some((x) => x.attributeId === a.id)),
-    [attributes, currentUser.attributeAssignments]
-  );
+  const assignedAttributes = useMemo(() => {
+    const activeDesk = currentUser.desks.find((d) => d.id === currentUser.activeDeskId);
+    if (!activeDesk) return [];
+    return attributes.filter((a) => activeDesk.attributeIds.includes(a.id));
+  }, [attributes, currentUser]);
 
   const journeysWithAccess = useMemo(
     () =>

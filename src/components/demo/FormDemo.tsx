@@ -2,15 +2,15 @@ import { useState, useMemo } from 'react';
 import { Card, Select, Switch, Space, Typography, Form, Alert, Divider, Tag, Button, message } from 'antd';
 import { useAppContext } from '../../context/AppContext';
 import { MASTER_DATA_ITEMS } from '../../data/mockData';
-import { getAttributeItemIds } from '../../types';
+import { getAttributeItemIds, getActiveDesk } from '../../types';
 
 export default function FormDemo() {
   const { currentUser, attributes } = useAppContext();
   const [showAll, setShowAll] = useState(false);
 
   const userAttribute = useMemo(() => {
-    if (currentUser.attributeAssignments.length === 0) return null;
-    const firstId = currentUser.attributeAssignments[0]?.attributeId;
+    const activeDesk = getActiveDesk(currentUser);
+    const firstId = activeDesk?.attributeIds?.[0];
     return firstId ? attributes.find((a) => a.id === firstId) || null : null;
   }, [currentUser, attributes]);
 

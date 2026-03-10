@@ -5,6 +5,7 @@ import CreateUserDrawer from './CreateUserDrawer';
 import { useAppContext } from '../../context/AppContext';
 import { BRANCHES } from '../../data/mockData';
 import type { User } from '../../types';
+import { getActiveDesk, getRoleById } from '../../types';
 
 export default function UserListPage() {
   const { users, attributes, deleteUser, pocOnboardingScenario } = useAppContext();
@@ -36,19 +37,28 @@ export default function UserListPage() {
       ),
     },
     { title: 'Email', dataIndex: 'email', key: 'email', width: 220 },
-    { title: 'Role', dataIndex: 'role', key: 'role', width: 160 },
+    {
+      title: 'Active Role',
+      key: 'role',
+      width: 160,
+      render: (_: unknown, r: User) => {
+        const desk = getActiveDesk(r);
+        const role = desk ? getRoleById(desk.roleId) : null;
+        return role ? <Tag color="purple">{role.name}</Tag> : <Tag>No Role</Tag>;
+      },
+    },
     ...(isCentralScenario
       ? [
           {
-            title: 'Attributes / Segment',
-            key: 'attributeSegment',
+            title: 'Desks',
+            key: 'desks',
             render: (_: unknown, r: User) =>
-              r.attributeAssignments.length > 0
-                ? r.attributeAssignments.map((a) => {
-                    const attr = attributes.find((x) => x.id === a.attributeId);
-                    return attr ? <Tag key={a.attributeId} color="blue">{attr.label}</Tag> : null;
+              r.desks.length > 0
+                ? r.desks.map((d) => {
+                    const role = getRoleById(d.roleId);
+                    return <Tag key={d.id} color="blue">{d.name} ({role?.name ?? d.roleId})</Tag>;
                   })
-                : <Tag color="gold">All Company Data (Admin)</Tag>,
+                : <Tag color="gold">No Desks</Tag>,
           },
         ]
       : [
@@ -70,15 +80,15 @@ export default function UserListPage() {
               r.branchId ? BRANCHES.find((b) => b.id === r.branchId)?.name || '—' : '—',
           },
           {
-            title: 'Attributes',
-            key: 'attributes',
+            title: 'Desks',
+            key: 'desks',
             render: (_: unknown, r: User) =>
               r.defaultBranchAccess
-                ? <Tag color="gold">Default Branch Access (Full CRUD)</Tag>
-                : r.attributeAssignments.length > 0
-                ? r.attributeAssignments.map((a) => {
-                    const attr = attributes.find((x) => x.id === a.attributeId);
-                    return attr ? <Tag key={a.attributeId}>{attr.label}</Tag> : null;
+                ? <Tag color="gold">Default Branch Access</Tag>
+                : r.desks.length > 0
+                ? r.desks.map((d) => {
+                    const role = getRoleById(d.roleId);
+                    return <Tag key={d.id}>{d.name} ({role?.name ?? d.roleId})</Tag>;
                   })
                 : <Typography.Text type="secondary">None</Typography.Text>,
           },

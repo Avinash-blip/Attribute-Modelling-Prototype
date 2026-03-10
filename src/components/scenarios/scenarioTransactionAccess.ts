@@ -1,5 +1,5 @@
 import type { Attribute, CrudPermission, User, MasterDataItem } from '../../types';
-import { PRESET_PERMISSIONS } from '../../types';
+import { getActiveDesk, getRolePermissions, getRoleById } from '../../types';
 import type { MockJourney } from '../../data/mockData';
 
 import type { JourneyAccess } from '../transactions/transactionAccess';
@@ -45,71 +45,65 @@ export function resolveScenarioJourneyAccess(
   masterDataItems: MasterDataItem[]
 ): JourneyAccess {
   const itemById = scenarioItemById(masterDataItems);
-  let bestCrud: CrudPermission[] = [];
+
+  const noAccess = (roleName: string, rolePerms: CrudPermission[], missing: JourneyAccess['missingItems'] = []): JourneyAccess => ({
+    canReadRow: false, canUpdateRow: false, canCreateRow: false, canDeleteRow: false,
+    matchedAttribute: null, matchedCrud: [], roleName, rolePermissions: rolePerms, missingItems: missing,
+  });
+
+  const activeDesk = getActiveDesk(user);
+  if (!activeDesk) {
+    if (user.defaultBranchAccess && user.branchId && journey.branchId === user.branchId) {
+      return {
+        canReadRow: true, canUpdateRow: true, canCreateRow: true, canDeleteRow: true,
+        matchedAttribute: '__default_branch_access__', matchedCrud: ['create', 'read', 'update', 'delete'],
+        roleName: 'Default Branch', rolePermissions: ['create', 'read', 'update', 'delete'], missingItems: [],
+      };
+    }
+    return noAccess('No Desk', []);
+  }
+
+  const rolePerms = getRolePermissions(activeDesk.roleId);
+  const roleName = getRoleById(activeDesk.roleId)?.name ?? 'Unknown';
+  const deskAttributes = attributes.filter((a) => activeDesk.attributeIds.includes(a.id));
+
   let matchedAttrId: string | null = null;
-
-  for (const assignment of user.attributeAssignments) {
-    const attr = attributes.find((a) => a.id === assignment.attributeId);
-    if (!attr) continue;
-
+  for (const attr of deskAttributes) {
     if (doesScenarioAttributeCoverJourney(attr, journey, itemById)) {
-      const perms =
-        assignment.crudPreset === 'custom'
-          ? (assignment.customPermissions ?? [])
-          : PRESET_PERMISSIONS[assignment.crudPreset];
-
-      if (perms.length > bestCrud.length) {
-        bestCrud = perms;
-        matchedAttrId = attr.id;
-      }
+      matchedAttrId = attr.id;
+      break;
     }
   }
 
-  if (bestCrud.length === 0 && user.defaultBranchAccess && user.branchId) {
-    if (journey.branchId === user.branchId) {
-      bestCrud = ['create', 'read', 'update', 'delete'];
-      matchedAttrId = '__default_branch_access__';
-    }
+  if (!matchedAttrId && user.defaultBranchAccess && user.branchId && journey.branchId === user.branchId) {
+    matchedAttrId = '__default_branch_access__';
   }
 
-  const canRead =
-    bestCrud.includes('read') ||
-    bestCrud.includes('create') ||
-    bestCrud.includes('update') ||
-    bestCrud.includes('delete');
-
-  const missingItems: { itemId: string; itemName: string; type: string }[] = [];
-  if (!canRead) {
-    const requiredItemIds = [
-      journey.routeItemId,
-      journey.vehicleTypeItemId,
-      journey.materialItemId,
-      journey.transporterItemId,
-    ];
-    for (const itemId of requiredItemIds) {
-      const item = itemById.get(itemId);
+  if (!matchedAttrId) {
+    const missingItems: JourneyAccess['missingItems'] = [];
+    const requiredItemIds = [journey.routeItemId, journey.vehicleTypeItemId, journey.materialItemId, journey.transporterItemId];
+    for (const id of requiredItemIds) {
+      const item = itemById.get(id);
       let covered = false;
-      for (const assignment of user.attributeAssignments) {
-        const attr = attributes.find((a) => a.id === assignment.attributeId);
-        if (attr && doesScenarioAttributeCoverItem(attr, itemId, itemById)) {
-          covered = true;
-          break;
-        }
+      for (const attr of deskAttributes) {
+        if (doesScenarioAttributeCoverItem(attr, id, itemById)) { covered = true; break; }
       }
-      if (!covered && item) {
-        missingItems.push({ itemId, itemName: item.name, type: item.type });
-      }
+      if (!covered && item) missingItems.push({ itemId: id, itemName: item.name, type: item.type });
     }
+    return noAccess(roleName, rolePerms, missingItems);
   }
 
+  const canRead = rolePerms.includes('read') || rolePerms.includes('create') || rolePerms.includes('update') || rolePerms.includes('delete');
   return {
     canReadRow: canRead,
-    canUpdateRow: bestCrud.includes('update'),
-    canCreateRow: bestCrud.includes('create'),
-    canDeleteRow: bestCrud.includes('delete'),
+    canUpdateRow: rolePerms.includes('update'),
+    canCreateRow: rolePerms.includes('create'),
+    canDeleteRow: rolePerms.includes('delete'),
     matchedAttribute: matchedAttrId,
-    matchedCrud: bestCrud,
-    missingItems,
+    matchedCrud: rolePerms,
+    roleName,
+    rolePermissions: rolePerms,
+    missingItems: [],
   };
 }
 
